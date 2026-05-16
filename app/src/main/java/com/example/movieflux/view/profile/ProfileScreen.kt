@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.ButtonSize
 import com.example.movieflux.view.components.LogoutConfirmDialog
 import com.example.movieflux.view.components.PrimaryButton
@@ -35,6 +36,8 @@ fun ProfileScreen(onLogout: () -> Unit) {
     val vm: ProfileViewModel = hiltViewModel()
     val uiState by vm.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LogRecompositions("ProfileScreen")
 
     LaunchedEffect(Unit) {
         vm.events.collect { event ->

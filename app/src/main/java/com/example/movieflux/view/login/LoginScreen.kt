@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.movieflux.ui.theme.BackgroundDark
 import com.example.movieflux.ui.theme.TealGreenLight
+import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.ButtonSize
 import com.example.movieflux.view.components.MovieFluxLogo
 import com.example.movieflux.view.components.PrimaryButton
@@ -57,6 +58,8 @@ fun LoginScreen(
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+
+    LogRecompositions("LoginScreen")
 
     LaunchedEffect(uiState) {
         if (uiState is LoginUiState.Success) {

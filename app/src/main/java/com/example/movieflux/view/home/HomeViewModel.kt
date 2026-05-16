@@ -2,6 +2,7 @@ package com.example.movieflux.view.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
@@ -25,7 +26,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val useCase: GetPopularMoviesUseCase,
-    private val repository: MovieRepository
+    private val repository: MovieRepository,
+    private val tracker: AnalyticsTracker
 ) : ViewModel() {
 
     private var currentPage = 1
@@ -75,6 +77,7 @@ class HomeViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState.Loading)
 
     init {
+        tracker.trackScreen("home")
         loadMovies()
     }
 
@@ -117,10 +120,12 @@ class HomeViewModel @Inject constructor(
     }
 
     fun toggleFavorite(movie: MovieModel) {
+        tracker.trackEvent("toggle_favorite", mapOf("movie_id" to movie.id, "is_favorite" to !movie.isFavorite))
         viewModelScope.launch { repository.toggleFavorite(movie) }
     }
 
     fun setViewMode(mode: ViewMode) {
+        tracker.trackEvent("view_mode_changed", mapOf("screen" to "home", "mode" to mode.name))
         _viewMode.value = mode
     }
 }

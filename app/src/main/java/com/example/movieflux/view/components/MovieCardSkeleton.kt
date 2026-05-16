@@ -21,9 +21,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.movieflux.performance.LogRecompositions
 
 @Composable
 fun MovieCardSkeleton(modifier: Modifier = Modifier) {
+    LogRecompositions("MovieCardSkeleton")
     val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.25f,

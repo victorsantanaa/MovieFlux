@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.movieflux.domain.model.MovieModel
+import com.example.movieflux.performance.LogRecompositions
+import com.example.movieflux.performance.logDrawTime
 import kotlin.math.roundToInt
 
 @Composable
@@ -36,9 +38,11 @@ fun MovieListItem(
     onToggleFavorite: (MovieModel) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    LogRecompositions("MovieListItem[${movie.id}]")
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .logDrawTime("MovieListItem[${movie.id}]")
             .clickable { onClick(movie.id) }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically

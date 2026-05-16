@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.domain.repository.MovieRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: MovieRepository
+    private val repository: MovieRepository,
+    private val tracker: AnalyticsTracker
 ) : ViewModel() {
 
     private val movieId: Int = savedStateHandle.get<String>("movieId")?.toInt() ?: 0
@@ -25,6 +27,7 @@ class DetailsViewModel @Inject constructor(
     val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()
 
     init {
+        tracker.trackScreen("details")
         loadDetail()
     }
 
@@ -47,6 +50,7 @@ class DetailsViewModel @Inject constructor(
     fun toggleFavorite() {
         val current = _uiState.value as? DetailsUiState.Success ?: return
         val movie = current.movie
+        tracker.trackEvent("toggle_favorite", mapOf("movie_id" to movie.id, "is_favorite" to !movie.isFavorite))
         _uiState.value = current.copy(movie = movie.copy(isFavorite = !movie.isFavorite))
         viewModelScope.launch { repository.toggleFavorite(movie) }
     }

@@ -13,7 +13,8 @@
       "Bash(gradlew.bat clean *)",
       "PowerShell(Set-Location \"C:\\\\Users\\\\Victor\\\\AndroidStudioProjects\\\\MovieFlux\"; .\\\\gradlew.bat compileDebugKotlin 2>&1 | Where-Object { $_ -match \"error:|Error\" } | Select-Object -First 20)",
       "PowerShell(Set-Location \"C:\\\\Users\\\\Victor\\\\AndroidStudioProjects\\\\MovieFlux\"; .\\\\gradlew.bat compileDebugKotlin --info 2>&1 | Where-Object { $_ -match \"\\\\.kt:\\\\d+\" } | Select-Object -First 20)",
-      "Bash(gradlew.bat assembleDebug)"
+      "Bash(gradlew.bat assembleDebug)",
+      "Bash(.\\\\gradlew.bat assembleDebug)"
     ]
   }
 }

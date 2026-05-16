@@ -97,6 +97,9 @@ dependencies {
     // AppCompat (FragmentActivity base for BiometricPrompt)
     implementation(libs.androidx.appcompat)
 
+    // JankStats
+    implementation(libs.androidx.metrics.performance)
+
     // Security / Biometric
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.biometric)

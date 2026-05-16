@@ -24,6 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.movieflux.performance.JankStateEffect
+import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.EmptyView
 import com.example.movieflux.view.components.LoadingView
 import com.example.movieflux.view.components.MovieCard
@@ -39,6 +41,9 @@ fun FavoritesScreen(onMovieClick: (Int) -> Unit) {
     val searchQuery by vm.searchQuery.collectAsState()
 
     val currentViewMode = (uiState as? FavoritesUiState.Success)?.viewMode ?: ViewMode.GRID
+
+    LogRecompositions("FavoritesScreen")
+    JankStateEffect("screen" to "favorites", "view_mode" to currentViewMode.name)
 
     Scaffold(
         topBar = {

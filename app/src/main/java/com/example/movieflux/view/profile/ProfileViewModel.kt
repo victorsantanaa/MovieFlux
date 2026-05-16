@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.BuildConfig
+import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.biometric.BiometricAvailability
 import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
@@ -27,6 +28,7 @@ sealed class ProfileUiEvent {
 class ProfileViewModel @Inject constructor(
     private val authPreferences: AuthPreferences,
     private val biometricHelper: BiometricHelper,
+    private val tracker: AnalyticsTracker,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -37,6 +39,7 @@ class ProfileViewModel @Inject constructor(
     val events = _events.receiveAsFlow()
 
     init {
+        tracker.trackScreen("profile")
         _uiState.update {
             it.copy(
                 biometricEnabled = authPreferences.biometricEnabled,
@@ -75,6 +78,7 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun confirmLogout() {
+        tracker.trackEvent("logout")
         authPreferences.clear()
         emitEvent(ProfileUiEvent.LogoutComplete)
     }

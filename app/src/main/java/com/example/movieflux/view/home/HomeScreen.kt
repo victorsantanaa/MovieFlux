@@ -30,10 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.movieflux.performance.JankStateEffect
+import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.EmptyView
 import com.example.movieflux.view.components.ErrorView
-import com.example.movieflux.view.components.LoadingView
 import com.example.movieflux.view.components.MovieCard
+import com.example.movieflux.view.components.MovieCardSkeleton
 import com.example.movieflux.view.components.MovieListItem
 import com.example.movieflux.view.components.SearchBar
 import com.example.movieflux.view.components.ViewMode
@@ -90,8 +92,26 @@ fun HomeScreen(onMovieClick: (Int) -> Unit) {
             }
         }
     ) { innerPadding ->
+        LogRecompositions("HomeScreen")
+        JankStateEffect(
+            "screen" to "home",
+            "view_mode" to currentViewMode.name
+        )
+
         when (val state = uiState) {
-            is HomeUiState.Loading -> LoadingView(modifier = Modifier.padding(innerPadding))
+            is HomeUiState.Loading -> LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                items(6) {
+                    MovieCardSkeleton(modifier = Modifier.fillMaxWidth())
+                }
+            }
 
             is HomeUiState.Error -> ErrorView(
                 message = state.message,

@@ -56,6 +56,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.movieflux.performance.JankStateEffect
+import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.ErrorView
 import com.example.movieflux.view.components.LoadingView
 
@@ -69,6 +71,9 @@ fun DetailsScreen(
     val uiState by vm.uiState.collectAsState()
 
     var showFullscreen by remember { mutableStateOf(false) }
+
+    LogRecompositions("DetailsScreen")
+    JankStateEffect("screen" to "details")
 
     Scaffold(
         topBar = {
