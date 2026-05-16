@@ -9,9 +9,7 @@ import com.example.movieflux.view.components.PrimaryButton
 
 @Composable
 fun HomeScreen(
-    onMovieClick: (Int) -> Unit,
-    onFavoritesClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onMovieClick: (Int) -> Unit
 ) {
     Column {
         Text(
@@ -22,16 +20,6 @@ fun HomeScreen(
             text = "Go to Details",
             onClick = { onMovieClick(123) },
             size = ButtonSize.MEDIUM
-        )
-        PrimaryButton(
-            text = "Go to Favorites",
-            onClick = onFavoritesClick,
-            size = ButtonSize.MEDIUM
-        )
-        PrimaryButton(
-            text = "Back to Login",
-            onClick = onLogoutClick,
-            size = ButtonSize.SMALL
         )
     }
 }
