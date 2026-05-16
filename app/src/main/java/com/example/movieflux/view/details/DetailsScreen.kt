@@ -37,7 +37,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.movieflux.view.components.ErrorView
 import com.example.movieflux.view.components.LoadingView
@@ -45,11 +45,10 @@ import com.example.movieflux.view.components.LoadingView
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailsScreen(
-    movieId: Int?,
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val vm: DetailsViewModel = viewModel(factory = DetailsViewModel.Factory(movieId ?: 0))
+    val vm: DetailsViewModel = hiltViewModel()
     val uiState by vm.uiState.collectAsState()
 
     Scaffold(

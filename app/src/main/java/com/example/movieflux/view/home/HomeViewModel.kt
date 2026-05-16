@@ -2,10 +2,11 @@ package com.example.movieflux.view.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.movieflux.data.repository.FakeMovieRepository
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
+import com.example.movieflux.view.components.ViewMode
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,13 +19,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-// TODO Phase 1/2: replace with @HiltViewModel + @Inject constructor(useCase, repository)
-class HomeViewModel : ViewModel() {
-
-    private val repository: MovieRepository = FakeMovieRepository
-    private val useCase = GetPopularMoviesUseCase(repository)
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val useCase: GetPopularMoviesUseCase,
+    private val repository: MovieRepository
+) : ViewModel() {
 
     private var currentPage = 1
     private var canLoadMore = true
@@ -40,6 +42,7 @@ class HomeViewModel : ViewModel() {
 
     private val _popularMovies = MutableStateFlow<List<MovieModel>>(emptyList())
     private val _loadState = MutableStateFlow(LoadState())
+    private val _viewMode = MutableStateFlow(ViewMode.GRID)
 
     private val activeMovies: Flow<Pair<List<MovieModel>, LoadState>> = _searchQuery
         .debounce(300L)
@@ -54,8 +57,9 @@ class HomeViewModel : ViewModel() {
 
     val uiState: StateFlow<HomeUiState> = combine(
         activeMovies,
-        repository.getFavorites()
-    ) { (movies, loadState), favorites ->
+        repository.getFavorites(),
+        _viewMode
+    ) { (movies, loadState), favorites, viewMode ->
         when {
             loadState.error != null -> HomeUiState.Error(loadState.error)
             loadState.isInitialLoading -> HomeUiState.Loading
@@ -63,7 +67,8 @@ class HomeViewModel : ViewModel() {
                 val favoriteIds = favorites.map { it.id }.toSet()
                 HomeUiState.Success(
                     movies = movies.map { it.copy(isFavorite = it.id in favoriteIds) },
-                    isLoadingMore = loadState.isLoadingMore
+                    isLoadingMore = loadState.isLoadingMore,
+                    viewMode = viewMode
                 )
             }
         }
@@ -113,5 +118,9 @@ class HomeViewModel : ViewModel() {
 
     fun toggleFavorite(movie: MovieModel) {
         viewModelScope.launch { repository.toggleFavorite(movie) }
+    }
+
+    fun setViewMode(mode: ViewMode) {
+        _viewMode.value = mode
     }
 }

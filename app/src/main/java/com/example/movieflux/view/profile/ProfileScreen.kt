@@ -22,7 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.movieflux.view.components.ButtonSize
 import com.example.movieflux.view.components.LogoutConfirmDialog
 import com.example.movieflux.view.components.PrimaryButton
@@ -32,7 +32,7 @@ import com.example.movieflux.view.components.SettingsSwitchRow
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(onLogout: () -> Unit) {
-    val vm: ProfileViewModel = viewModel()
+    val vm: ProfileViewModel = hiltViewModel()
     val uiState by vm.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 

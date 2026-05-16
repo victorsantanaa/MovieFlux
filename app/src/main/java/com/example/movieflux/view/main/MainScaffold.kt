@@ -5,10 +5,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.movieflux.navigation.Screen
 import com.example.movieflux.view.components.BottomNavBar
 import com.example.movieflux.view.details.DetailsScreen
@@ -56,12 +58,13 @@ fun MainScaffold(onLogout: () -> Unit) {
                 ProfileScreen(onLogout = onLogout)
             }
 
-            composable(Screen.Details.route) { backStackEntry ->
-                val movieId = backStackEntry.arguments
-                    ?.getString(Screen.Details.ARG_MOVIE_ID)
-                    ?.toIntOrNull()
+            composable(
+                route = Screen.Details.route,
+                arguments = listOf(
+                    navArgument(Screen.Details.ARG_MOVIE_ID) { type = NavType.StringType }
+                )
+            ) {
                 DetailsScreen(
-                    movieId = movieId,
                     onBackClick = { innerNavController.popBackStack() }
                 )
             }

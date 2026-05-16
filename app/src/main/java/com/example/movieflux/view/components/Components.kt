@@ -4,12 +4,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.movieflux.ui.theme.MovieFluxTheme
@@ -27,6 +30,7 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     size: ButtonSize = ButtonSize.MEDIUM,
     enabled: Boolean = true,
+    isLoading: Boolean = false,
     colors: androidx.compose.material3.ButtonColors = ButtonDefaults.buttonColors(
         containerColor = MaterialTheme.colorScheme.primary,
         contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -70,14 +74,22 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         modifier = buttonModifier,
-        enabled = enabled,
+        enabled = enabled && !isLoading,
         colors = colors,
         shape = MaterialTheme.shapes.medium
     ) {
-        Text(
-            text = text,
-            style = textStyle
-        )
+        if (isLoading) {
+            CircularProgressIndicator(
+                color = Color.Black,
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp
+            )
+        } else {
+            Text(
+                text = text,
+                style = textStyle
+            )
+        }
     }
 }
 

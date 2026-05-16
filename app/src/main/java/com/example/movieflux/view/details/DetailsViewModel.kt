@@ -2,21 +2,24 @@ package com.example.movieflux.view.details
 
 import android.content.Context
 import android.content.Intent
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.movieflux.data.repository.FakeMovieRepository
-import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-// TODO Phase 1/2: replace with @HiltViewModel + @Inject constructor(savedStateHandle, repository)
-class DetailsViewModel(private val movieId: Int) : ViewModel() {
+@HiltViewModel
+class DetailsViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val repository: MovieRepository
+) : ViewModel() {
 
-    private val repository: MovieRepository = FakeMovieRepository
+    private val movieId: Int = savedStateHandle.get<String>("movieId")?.toInt() ?: 0
 
     private val _uiState = MutableStateFlow<DetailsUiState>(DetailsUiState.Loading)
     val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()
@@ -59,12 +62,5 @@ class DetailsViewModel(private val movieId: Int) : ViewModel() {
             )
         }
         context.startActivity(Intent.createChooser(intent, "Share via"))
-    }
-
-    class Factory(private val movieId: Int) : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            @Suppress("UNCHECKED_CAST")
-            return DetailsViewModel(movieId) as T
-        }
     }
 }

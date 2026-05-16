@@ -9,7 +9,8 @@
       "WebFetch(domain:dagger.dev)",
       "mcp__ide__getDiagnostics",
       "Read(//mnt/c/Users/Victor/AndroidStudioProjects/**)",
-      "Bash(./gradlew assembleDebug)"
+      "Bash(./gradlew assembleDebug)",
+      "Bash(gradlew.bat clean *)"
     ]
   }
 }

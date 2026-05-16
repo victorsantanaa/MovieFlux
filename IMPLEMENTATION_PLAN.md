@@ -32,62 +32,274 @@ Conventions:
 
 **Goal:** The app compiles with all dependencies wired. No screen logic yet.
 
-### 1.1 — Add dependencies to `libs.versions.toml` + `app/build.gradle.kts`
+### 1.0 — Root cause: why imports currently fail
 
-| Library | Version |
-|---|---|
-| Hilt | 2.51.1 |
-| Hilt Navigation Compose | 1.2.0 |
-| KSP (replaces kapt) | 2.2.10-1.0.29 |
-| Room KSP compiler | 2.6.1 |
-| Coil Compose | 2.7.0 |
-| Timber | 5.0.1 |
-| AndroidX Security Crypto (EncryptedSharedPreferences) | 1.1.0-alpha06 |
-| AndroidX Biometric | 1.2.0-alpha05 |
-| Material Icons Extended | (BOM-managed) |
-| Kotlinx Coroutines Test | 1.8.1 |
-| MockK | 1.13.12 |
-| Turbine (Flow testing) | 1.1.0 |
+A baseline audit of the current `gradle/libs.versions.toml`, `build.gradle.kts` (root), and `app/build.gradle.kts` reveals that the project is missing several plugins and dependencies that the existing source files already reference. Every file under `di/`, `data/preferences/`, `data/biometric/`, `data/local/MovieDatabase.kt`, `MovieFluxApp.kt`, and all `view/**/ViewModel.kt` files currently fails to resolve imports because of the gaps below. Phase 1 must fix **all** of them before any other phase runs.
 
-### 1.2 — Apply KSP + Hilt plugins
-Add to root and `:app` `build.gradle.kts`. Remove any `kapt` references.
+| # | Missing piece | Symptom in IDE / build |
+|---|---|---|
+| 1 | `org.jetbrains.kotlin.android` plugin | Kotlin sources under `app/src/main/java/**` are not compiled as a Kotlin module; annotation processors (KSP) refuse to attach. |
+| 2 | `com.google.devtools.ksp` plugin | `@Database`, `@Dao`, `@HiltAndroidApp`, `@Inject`, `@Module` generate nothing → `DaggerMovieFluxApp_HiltComponents` and `MovieDatabase_Impl` never appear → unresolved references at every injection site. |
+| 3 | `com.google.dagger.hilt.android` plugin | Hilt component generation skipped even if dependencies are added. |
+| 4 | Hilt runtime + compiler artifacts | `import dagger.hilt.*`, `import javax.inject.Inject` resolve, but app crashes/fails to compile at codegen. |
+| 5 | `androidx.hilt:hilt-navigation-compose` | `hiltViewModel()` in Compose screens cannot be resolved. |
+| 6 | Room compiler (KSP) | `MovieDatabase`, `MovieDao` produce "cannot find implementation" at runtime / no generated `_Impl`. |
+| 7 | `androidx.lifecycle:lifecycle-viewmodel-compose` and `lifecycle-viewmodel-ktx` | `ViewModel`, `viewModelScope`, `viewModel()`/`hiltViewModel()` unresolved in `*ViewModel.kt` files. |
+| 8 | `androidx.compose.material:material-icons-extended` | `Icons.Default.Person`, `Icons.Default.Favorite`, `Icons.Default.Visibility`, etc. used by `BottomNavBar`, `LoginScreen`, `ProfileScreen` → unresolved. |
+| 9 | `androidx.security:security-crypto` | `EncryptedSharedPreferences`, `MasterKey` in `AuthPreferences.kt` unresolved. |
+| 10 | `androidx.biometric:biometric` | `BiometricManager`, `BiometricPrompt` in `BiometricHelper.kt` unresolved. |
+| 11 | `com.jakewharton.timber:timber` | `Timber.plant(...)` in `MovieFluxApp.kt` unresolved. |
+| 12 | `buildFeatures.buildConfig = true` + `buildConfigField` | `BuildConfig.TMDB_API_KEY` referenced by `NetworkModule` does not exist. |
+| 13 | `<application android:name=".MovieFluxApp">` in `AndroidManifest.xml` | App runs with the default `Application`, so Hilt never initialises → runtime `IllegalStateException`. |
+| 14 | Compose BOM `2024.09.00` is stale and `kotlin-compose` plugin requires Kotlin `2.2.10` paired with a current BOM | Compose compiler / runtime drift causes `@Composable` resolution warnings and missing APIs (e.g. `WindowInsets` helpers used by Login). |
+| 15 | `JavaVersion.VERSION_11` with Kotlin 2.2 + KSP 2.2.10 | KSP 2.2.x and Hilt 2.51+ require **JVM 17**. Leaving 11 produces `Unsupported class file major version` at KSP run. |
+| 16 | Gson vs. Moshi conflict in earlier draft | `libs.versions.toml` already declares Gson + `converter-gson`. Decision: **keep Gson** (already imported, less churn). Remove the Moshi mention from `NetworkModule` notes. |
 
-### 1.3 — `MovieFluxApp.kt` — Application class
+The substeps below resolve every row above in order. Do not skip a substep — each is a real failing import in the current tree.
+
+---
+
+### 1.1 — Bump JVM target to 17
+
+In `app/build.gradle.kts`:
+
+```kotlin
+compileOptions {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+kotlin {
+    jvmToolchain(17)
+}
+```
+
+Also bump the Compose BOM in `libs.versions.toml` to a current release:
+
+```toml
+composeBom = "2025.01.00"   # or newer; must match Kotlin 2.2.10 + AGP 9.x
+```
+
+### 1.2 — Declare new versions in `gradle/libs.versions.toml`
+
+Add under `[versions]`:
+
+```toml
+hilt = "2.51.1"
+hiltNavigationCompose = "1.2.0"
+ksp = "2.2.10-1.0.29"           # MUST match Kotlin version exactly
+lifecycleViewmodel = "2.10.0"
+securityCrypto = "1.1.0-alpha06"
+biometric = "1.2.0-alpha05"
+timber = "5.0.1"
+coroutinesTest = "1.8.1"
+mockk = "1.13.12"
+turbine = "1.1.0"
+```
+
+### 1.3 — Declare new libraries in `libs.versions.toml`
+
+Add under `[libraries]`:
+
+```toml
+# Hilt
+hilt-android            = { group = "com.google.dagger",  name = "hilt-android",            version.ref = "hilt" }
+hilt-compiler           = { group = "com.google.dagger",  name = "hilt-android-compiler",   version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt",      name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+
+# Lifecycle / ViewModel for Compose
+androidx-lifecycle-viewmodel-ktx     = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx",     version.ref = "lifecycleViewmodel" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodel" }
+
+# Room compiler (KSP)
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+# Compose extras
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+
+# Security / Biometric
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
+androidx-biometric       = { group = "androidx.biometric", name = "biometric",       version.ref = "biometric" }
+
+# Logging
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+
+# Test
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+mockk                   = { group = "io.mockk",              name = "mockk",                   version.ref = "mockk" }
+turbine                 = { group = "app.cash.turbine",      name = "turbine",                 version.ref = "turbine" }
+```
+
+### 1.4 — Declare new plugins in `libs.versions.toml`
+
+The current `[plugins]` block is missing the Kotlin Android plugin entirely — that is the single biggest reason imports fail. Replace `[plugins]` with:
+
+```toml
+[plugins]
+android-application = { id = "com.android.application",                   version.ref = "agp" }
+kotlin-android      = { id = "org.jetbrains.kotlin.android",              version.ref = "kotlin" }
+kotlin-compose      = { id = "org.jetbrains.kotlin.plugin.compose",       version.ref = "kotlin" }
+ksp                 = { id = "com.google.devtools.ksp",                   version.ref = "ksp" }
+hilt                = { id = "com.google.dagger.hilt.android",            version.ref = "hilt" }
+```
+
+### 1.5 — Register plugins in the root `build.gradle.kts`
+
+Replace the contents of the root `build.gradle.kts` with:
+
+```kotlin
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android)      apply false
+    alias(libs.plugins.kotlin.compose)      apply false
+    alias(libs.plugins.ksp)                 apply false
+    alias(libs.plugins.hilt)                apply false
+}
+```
+
+### 1.6 — Apply plugins in `app/build.gradle.kts`
+
+Replace the `plugins { … }` block at the top of `app/build.gradle.kts` with:
+
+```kotlin
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
+}
+```
+
+Order matters: `kotlin-android` must precede `kotlin-compose`, `ksp`, and `hilt`.
+
+### 1.7 — Enable `buildConfig` and emit `TMDB_API_KEY`
+
+In `app/build.gradle.kts`:
+
+1. Add `TMDB_API_KEY=your_real_key_here` to `local.properties` (this file is gitignored).
+2. At the top of the file, read it:
+   ```kotlin
+   import java.util.Properties
+   import java.io.FileInputStream
+
+   val localProps = Properties().apply {
+       val f = rootProject.file("local.properties")
+       if (f.exists()) load(FileInputStream(f))
+   }
+   val tmdbApiKey: String = localProps.getProperty("TMDB_API_KEY") ?: ""
+   ```
+3. Inside `android { defaultConfig { … } }`:
+   ```kotlin
+   buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
+   ```
+4. Inside `android { buildFeatures { … } }` add:
+   ```kotlin
+   buildConfig = true
+   ```
+
+### 1.8 — Wire dependencies in `app/build.gradle.kts`
+
+Append to the existing `dependencies { … }` block:
+
+```kotlin
+// Hilt
+implementation(libs.hilt.android)
+ksp(libs.hilt.compiler)
+implementation(libs.hilt.navigation.compose)
+
+// Lifecycle / ViewModel
+implementation(libs.androidx.lifecycle.viewmodel.ktx)
+implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+// Room compiler
+ksp(libs.androidx.room.compiler)
+
+// Compose extras
+implementation(libs.androidx.compose.material.icons.extended)
+
+// Security / Biometric
+implementation(libs.androidx.security.crypto)
+implementation(libs.androidx.biometric)
+
+// Logging
+implementation(libs.timber)
+
+// Test
+testImplementation(libs.kotlinx.coroutines.test)
+testImplementation(libs.mockk)
+testImplementation(libs.turbine)
+```
+
+### 1.9 — Register the Application class in `AndroidManifest.xml`
+
+Edit `app/src/main/AndroidManifest.xml` and add `android:name=".MovieFluxApp"` on the `<application>` tag:
+
+```xml
+<application
+    android:name=".MovieFluxApp"
+    android:allowBackup="true"
+    ... >
+```
+
+Without this line, `@HiltAndroidApp` is never initialised and every `@Inject` site throws at runtime even after the build succeeds.
+
+### 1.10 — `MovieFluxApp.kt` — Application class
+
 ```kotlin
 @HiltAndroidApp
 class MovieFluxApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        Timber.plant(Timber.DebugTree())
+        if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
     }
 }
 ```
-Register `android:name=".MovieFluxApp"` in `AndroidManifest.xml`.
 
-### 1.4 — `BuildConfig` for the TMDB API key
-- Add `TMDB_API_KEY=...` to `local.properties` (gitignored).
-- In `app/build.gradle.kts`, read the property and emit a `buildConfigField("String", "TMDB_API_KEY", "\"$key\"")`.
-- Enable `buildFeatures.buildConfig = true`.
+Required imports:
+```kotlin
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+import timber.log.Timber
+import com.example.movieflux.BuildConfig
+```
 
-### 1.5 — `di/NetworkModule.kt`
-- `ApiKeyInterceptor` appends `?api_key=<BuildConfig.TMDB_API_KEY>` to every request URL.
+### 1.11 — Annotate `MainActivity` with `@AndroidEntryPoint`
+
+```kotlin
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() { … }
+```
+
+Without this annotation, `hiltViewModel()` cannot resolve the activity's component.
+
+### 1.12 — `di/NetworkModule.kt`
+
+- `ApiKeyInterceptor` appends `?api_key=<BuildConfig.TMDB_API_KEY>` to every request URL (use `HttpUrl.newBuilder().addQueryParameter("api_key", …)`).
 - `HttpLoggingInterceptor` at `BODY` level on debug, `BASIC` on release.
-- `OkHttpClient` with both interceptors, 15s timeouts.
-- `Retrofit` with base URL `https://api.themoviedb.org/3/` + Moshi/Kotlinx-serialization converter (pick one — Moshi is conventional with Retrofit).
-- Provide `RemoteDataSource`.
+- `OkHttpClient` with both interceptors, 15s connect/read/write timeouts.
+- `Retrofit` with base URL `https://api.themoviedb.org/3/` + **Gson** converter (`GsonConverterFactory.create()`) — Gson is already in `libs.versions.toml`; do not introduce Moshi.
+- Provide `RemoteDataSource` via `retrofit.create(RemoteDataSource::class.java)`.
+- Module annotated `@Module @InstallIn(SingletonComponent::class)`.
 
-### 1.6 — `di/DatabaseModule.kt`
-- Build `MovieDatabase` (`@Database(entities = [MovieEntity::class], version = 1)`).
-- Provide `MovieDao`.
+### 1.13 — `di/DatabaseModule.kt`
 
-### 1.7 — `di/RepositoryModule.kt`
+- Provide `MovieDatabase` via `Room.databaseBuilder(context, MovieDatabase::class.java, "movieflux.db").build()`.
+- Provide `MovieDao` from `db.movieDao()`.
+- `@ApplicationContext` from Hilt for the context.
+- Module annotated `@Module @InstallIn(SingletonComponent::class)`.
+
+### 1.14 — `di/RepositoryModule.kt`
+
 - `@Binds` `MovieRepositoryImpl` → `MovieRepository`.
+- Abstract class, annotated `@Module @InstallIn(SingletonComponent::class)`.
 
-### 1.8 — Extend `RemoteDataSource`
+### 1.15 — Extend `RemoteDataSource`
+
 - Add `@GET("movie/{movie_id}") suspend fun getMovieDetail(@Path("movie_id") id: Int): MovieDetailDto`.
 - `MovieDetailDto` fields: `id`, `title`, `overview`, `poster_path`, `vote_average`, `genres: List<GenreDto>` (detail endpoint returns full genre objects, no separate `/genre/movie/list` call needed for Details).
 
-### 1.9 — `MovieDatabase.kt` body
+### 1.16 — `MovieDatabase.kt` body
+
 ```kotlin
 @Database(entities = [MovieEntity::class], version = 1)
 abstract class MovieDatabase : RoomDatabase() {
@@ -95,8 +307,15 @@ abstract class MovieDatabase : RoomDatabase() {
 }
 ```
 
-### 1.10 — Smoke-compile gate
-Run `./gradlew assembleDebug`. Must succeed before any feature work.
+### 1.17 — Sync + smoke-compile gate
+
+1. In Android Studio: **File → Sync Project with Gradle Files**. Verify the IDE no longer flags red imports in `MovieFluxApp.kt`, `di/*.kt`, `data/preferences/AuthPreferences.kt`, `data/biometric/BiometricHelper.kt`, and the `view/**/ViewModel.kt` files.
+2. From the command line:
+   ```bash
+   ./gradlew clean assembleDebug
+   ```
+   (On Windows: `gradlew.bat clean assembleDebug`.)
+3. Must finish with `BUILD SUCCESSFUL`. If KSP fails with `Unsupported class file major version`, recheck step 1.1 (JVM 17). If Hilt fails with `expected @HiltAndroidApp`, recheck step 1.9. Do **not** start Phase 2 until this gate is green.
 
 ---
 
