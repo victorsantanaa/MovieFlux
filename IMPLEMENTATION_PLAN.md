@@ -32,62 +32,274 @@ Conventions:
 
 **Goal:** The app compiles with all dependencies wired. No screen logic yet.
 
-### 1.1 — Add dependencies to `libs.versions.toml` + `app/build.gradle.kts`
+### 1.0 — Root cause: why imports currently fail
 
-| Library | Version |
-|---|---|
-| Hilt | 2.51.1 |
-| Hilt Navigation Compose | 1.2.0 |
-| KSP (replaces kapt) | 2.2.10-1.0.29 |
-| Room KSP compiler | 2.6.1 |
-| Coil Compose | 2.7.0 |
-| Timber | 5.0.1 |
-| AndroidX Security Crypto (EncryptedSharedPreferences) | 1.1.0-alpha06 |
-| AndroidX Biometric | 1.2.0-alpha05 |
-| Material Icons Extended | (BOM-managed) |
-| Kotlinx Coroutines Test | 1.8.1 |
-| MockK | 1.13.12 |
-| Turbine (Flow testing) | 1.1.0 |
+A baseline audit of the current `gradle/libs.versions.toml`, `build.gradle.kts` (root), and `app/build.gradle.kts` reveals that the project is missing several plugins and dependencies that the existing source files already reference. Every file under `di/`, `data/preferences/`, `data/biometric/`, `data/local/MovieDatabase.kt`, `MovieFluxApp.kt`, and all `view/**/ViewModel.kt` files currently fails to resolve imports because of the gaps below. Phase 1 must fix **all** of them before any other phase runs.
 
-### 1.2 — Apply KSP + Hilt plugins
-Add to root and `:app` `build.gradle.kts`. Remove any `kapt` references.
+| # | Missing piece | Symptom in IDE / build |
+|---|---|---|
+| 1 | `org.jetbrains.kotlin.android` plugin | Kotlin sources under `app/src/main/java/**` are not compiled as a Kotlin module; annotation processors (KSP) refuse to attach. |
+| 2 | `com.google.devtools.ksp` plugin | `@Database`, `@Dao`, `@HiltAndroidApp`, `@Inject`, `@Module` generate nothing → `DaggerMovieFluxApp_HiltComponents` and `MovieDatabase_Impl` never appear → unresolved references at every injection site. |
+| 3 | `com.google.dagger.hilt.android` plugin | Hilt component generation skipped even if dependencies are added. |
+| 4 | Hilt runtime + compiler artifacts | `import dagger.hilt.*`, `import javax.inject.Inject` resolve, but app crashes/fails to compile at codegen. |
+| 5 | `androidx.hilt:hilt-navigation-compose` | `hiltViewModel()` in Compose screens cannot be resolved. |
+| 6 | Room compiler (KSP) | `MovieDatabase`, `MovieDao` produce "cannot find implementation" at runtime / no generated `_Impl`. |
+| 7 | `androidx.lifecycle:lifecycle-viewmodel-compose` and `lifecycle-viewmodel-ktx` | `ViewModel`, `viewModelScope`, `viewModel()`/`hiltViewModel()` unresolved in `*ViewModel.kt` files. |
+| 8 | `androidx.compose.material:material-icons-extended` | `Icons.Default.Person`, `Icons.Default.Favorite`, `Icons.Default.Visibility`, etc. used by `BottomNavBar`, `LoginScreen`, `ProfileScreen` → unresolved. |
+| 9 | `androidx.security:security-crypto` | `EncryptedSharedPreferences`, `MasterKey` in `AuthPreferences.kt` unresolved. |
+| 10 | `androidx.biometric:biometric` | `BiometricManager`, `BiometricPrompt` in `BiometricHelper.kt` unresolved. |
+| 11 | `com.jakewharton.timber:timber` | `Timber.plant(...)` in `MovieFluxApp.kt` unresolved. |
+| 12 | `buildFeatures.buildConfig = true` + `buildConfigField` | `BuildConfig.TMDB_API_KEY` referenced by `NetworkModule` does not exist. |
+| 13 | `<application android:name=".MovieFluxApp">` in `AndroidManifest.xml` | App runs with the default `Application`, so Hilt never initialises → runtime `IllegalStateException`. |
+| 14 | Compose BOM `2024.09.00` is stale and `kotlin-compose` plugin requires Kotlin `2.2.10` paired with a current BOM | Compose compiler / runtime drift causes `@Composable` resolution warnings and missing APIs (e.g. `WindowInsets` helpers used by Login). |
+| 15 | `JavaVersion.VERSION_11` with Kotlin 2.2 + KSP 2.2.10 | KSP 2.2.x and Hilt 2.51+ require **JVM 17**. Leaving 11 produces `Unsupported class file major version` at KSP run. |
+| 16 | Gson vs. Moshi conflict in earlier draft | `libs.versions.toml` already declares Gson + `converter-gson`. Decision: **keep Gson** (already imported, less churn). Remove the Moshi mention from `NetworkModule` notes. |
 
-### 1.3 — `MovieFluxApp.kt` — Application class
+The substeps below resolve every row above in order. Do not skip a substep — each is a real failing import in the current tree.
+
+---
+
+### 1.1 — Bump JVM target to 17
+
+In `app/build.gradle.kts`:
+
+```kotlin
+compileOptions {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
+kotlin {
+    jvmToolchain(17)
+}
+```
+
+Also bump the Compose BOM in `libs.versions.toml` to a current release:
+
+```toml
+composeBom = "2025.01.00"   # or newer; must match Kotlin 2.2.10 + AGP 9.x
+```
+
+### 1.2 — Declare new versions in `gradle/libs.versions.toml`
+
+Add under `[versions]`:
+
+```toml
+hilt = "2.51.1"
+hiltNavigationCompose = "1.2.0"
+ksp = "2.2.10-1.0.29"           # MUST match Kotlin version exactly
+lifecycleViewmodel = "2.10.0"
+securityCrypto = "1.1.0-alpha06"
+biometric = "1.2.0-alpha05"
+timber = "5.0.1"
+coroutinesTest = "1.8.1"
+mockk = "1.13.12"
+turbine = "1.1.0"
+```
+
+### 1.3 — Declare new libraries in `libs.versions.toml`
+
+Add under `[libraries]`:
+
+```toml
+# Hilt
+hilt-android            = { group = "com.google.dagger",  name = "hilt-android",            version.ref = "hilt" }
+hilt-compiler           = { group = "com.google.dagger",  name = "hilt-android-compiler",   version.ref = "hilt" }
+hilt-navigation-compose = { group = "androidx.hilt",      name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+
+# Lifecycle / ViewModel for Compose
+androidx-lifecycle-viewmodel-ktx     = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx",     version.ref = "lifecycleViewmodel" }
+androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodel" }
+
+# Room compiler (KSP)
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+
+# Compose extras
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+
+# Security / Biometric
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
+androidx-biometric       = { group = "androidx.biometric", name = "biometric",       version.ref = "biometric" }
+
+# Logging
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+
+# Test
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+mockk                   = { group = "io.mockk",              name = "mockk",                   version.ref = "mockk" }
+turbine                 = { group = "app.cash.turbine",      name = "turbine",                 version.ref = "turbine" }
+```
+
+### 1.4 — Declare new plugins in `libs.versions.toml`
+
+The current `[plugins]` block is missing the Kotlin Android plugin entirely — that is the single biggest reason imports fail. Replace `[plugins]` with:
+
+```toml
+[plugins]
+android-application = { id = "com.android.application",                   version.ref = "agp" }
+kotlin-android      = { id = "org.jetbrains.kotlin.android",              version.ref = "kotlin" }
+kotlin-compose      = { id = "org.jetbrains.kotlin.plugin.compose",       version.ref = "kotlin" }
+ksp                 = { id = "com.google.devtools.ksp",                   version.ref = "ksp" }
+hilt                = { id = "com.google.dagger.hilt.android",            version.ref = "hilt" }
+```
+
+### 1.5 — Register plugins in the root `build.gradle.kts`
+
+Replace the contents of the root `build.gradle.kts` with:
+
+```kotlin
+plugins {
+    alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.kotlin.android)      apply false
+    alias(libs.plugins.kotlin.compose)      apply false
+    alias(libs.plugins.ksp)                 apply false
+    alias(libs.plugins.hilt)                apply false
+}
+```
+
+### 1.6 — Apply plugins in `app/build.gradle.kts`
+
+Replace the `plugins { … }` block at the top of `app/build.gradle.kts` with:
+
+```kotlin
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.hilt)
+}
+```
+
+Order matters: `kotlin-android` must precede `kotlin-compose`, `ksp`, and `hilt`.
+
+### 1.7 — Enable `buildConfig` and emit `TMDB_API_KEY`
+
+In `app/build.gradle.kts`:
+
+1. Add `TMDB_API_KEY=your_real_key_here` to `local.properties` (this file is gitignored).
+2. At the top of the file, read it:
+   ```kotlin
+   import java.util.Properties
+   import java.io.FileInputStream
+
+   val localProps = Properties().apply {
+       val f = rootProject.file("local.properties")
+       if (f.exists()) load(FileInputStream(f))
+   }
+   val tmdbApiKey: String = localProps.getProperty("TMDB_API_KEY") ?: ""
+   ```
+3. Inside `android { defaultConfig { … } }`:
+   ```kotlin
+   buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
+   ```
+4. Inside `android { buildFeatures { … } }` add:
+   ```kotlin
+   buildConfig = true
+   ```
+
+### 1.8 — Wire dependencies in `app/build.gradle.kts`
+
+Append to the existing `dependencies { … }` block:
+
+```kotlin
+// Hilt
+implementation(libs.hilt.android)
+ksp(libs.hilt.compiler)
+implementation(libs.hilt.navigation.compose)
+
+// Lifecycle / ViewModel
+implementation(libs.androidx.lifecycle.viewmodel.ktx)
+implementation(libs.androidx.lifecycle.viewmodel.compose)
+
+// Room compiler
+ksp(libs.androidx.room.compiler)
+
+// Compose extras
+implementation(libs.androidx.compose.material.icons.extended)
+
+// Security / Biometric
+implementation(libs.androidx.security.crypto)
+implementation(libs.androidx.biometric)
+
+// Logging
+implementation(libs.timber)
+
+// Test
+testImplementation(libs.kotlinx.coroutines.test)
+testImplementation(libs.mockk)
+testImplementation(libs.turbine)
+```
+
+### 1.9 — Register the Application class in `AndroidManifest.xml`
+
+Edit `app/src/main/AndroidManifest.xml` and add `android:name=".MovieFluxApp"` on the `<application>` tag:
+
+```xml
+<application
+    android:name=".MovieFluxApp"
+    android:allowBackup="true"
+    ... >
+```
+
+Without this line, `@HiltAndroidApp` is never initialised and every `@Inject` site throws at runtime even after the build succeeds.
+
+### 1.10 — `MovieFluxApp.kt` — Application class
+
 ```kotlin
 @HiltAndroidApp
 class MovieFluxApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        Timber.plant(Timber.DebugTree())
+        if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
     }
 }
 ```
-Register `android:name=".MovieFluxApp"` in `AndroidManifest.xml`.
 
-### 1.4 — `BuildConfig` for the TMDB API key
-- Add `TMDB_API_KEY=...` to `local.properties` (gitignored).
-- In `app/build.gradle.kts`, read the property and emit a `buildConfigField("String", "TMDB_API_KEY", "\"$key\"")`.
-- Enable `buildFeatures.buildConfig = true`.
+Required imports:
+```kotlin
+import android.app.Application
+import dagger.hilt.android.HiltAndroidApp
+import timber.log.Timber
+import com.example.movieflux.BuildConfig
+```
 
-### 1.5 — `di/NetworkModule.kt`
-- `ApiKeyInterceptor` appends `?api_key=<BuildConfig.TMDB_API_KEY>` to every request URL.
+### 1.11 — Annotate `MainActivity` with `@AndroidEntryPoint`
+
+```kotlin
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() { … }
+```
+
+Without this annotation, `hiltViewModel()` cannot resolve the activity's component.
+
+### 1.12 — `di/NetworkModule.kt`
+
+- `ApiKeyInterceptor` appends `?api_key=<BuildConfig.TMDB_API_KEY>` to every request URL (use `HttpUrl.newBuilder().addQueryParameter("api_key", …)`).
 - `HttpLoggingInterceptor` at `BODY` level on debug, `BASIC` on release.
-- `OkHttpClient` with both interceptors, 15s timeouts.
-- `Retrofit` with base URL `https://api.themoviedb.org/3/` + Moshi/Kotlinx-serialization converter (pick one — Moshi is conventional with Retrofit).
-- Provide `RemoteDataSource`.
+- `OkHttpClient` with both interceptors, 15s connect/read/write timeouts.
+- `Retrofit` with base URL `https://api.themoviedb.org/3/` + **Gson** converter (`GsonConverterFactory.create()`) — Gson is already in `libs.versions.toml`; do not introduce Moshi.
+- Provide `RemoteDataSource` via `retrofit.create(RemoteDataSource::class.java)`.
+- Module annotated `@Module @InstallIn(SingletonComponent::class)`.
 
-### 1.6 — `di/DatabaseModule.kt`
-- Build `MovieDatabase` (`@Database(entities = [MovieEntity::class], version = 1)`).
-- Provide `MovieDao`.
+### 1.13 — `di/DatabaseModule.kt`
 
-### 1.7 — `di/RepositoryModule.kt`
+- Provide `MovieDatabase` via `Room.databaseBuilder(context, MovieDatabase::class.java, "movieflux.db").build()`.
+- Provide `MovieDao` from `db.movieDao()`.
+- `@ApplicationContext` from Hilt for the context.
+- Module annotated `@Module @InstallIn(SingletonComponent::class)`.
+
+### 1.14 — `di/RepositoryModule.kt`
+
 - `@Binds` `MovieRepositoryImpl` → `MovieRepository`.
+- Abstract class, annotated `@Module @InstallIn(SingletonComponent::class)`.
 
-### 1.8 — Extend `RemoteDataSource`
+### 1.15 — Extend `RemoteDataSource`
+
 - Add `@GET("movie/{movie_id}") suspend fun getMovieDetail(@Path("movie_id") id: Int): MovieDetailDto`.
 - `MovieDetailDto` fields: `id`, `title`, `overview`, `poster_path`, `vote_average`, `genres: List<GenreDto>` (detail endpoint returns full genre objects, no separate `/genre/movie/list` call needed for Details).
 
-### 1.9 — `MovieDatabase.kt` body
+### 1.16 — `MovieDatabase.kt` body
+
 ```kotlin
 @Database(entities = [MovieEntity::class], version = 1)
 abstract class MovieDatabase : RoomDatabase() {
@@ -95,8 +307,15 @@ abstract class MovieDatabase : RoomDatabase() {
 }
 ```
 
-### 1.10 — Smoke-compile gate
-Run `./gradlew assembleDebug`. Must succeed before any feature work.
+### 1.17 — Sync + smoke-compile gate
+
+1. In Android Studio: **File → Sync Project with Gradle Files**. Verify the IDE no longer flags red imports in `MovieFluxApp.kt`, `di/*.kt`, `data/preferences/AuthPreferences.kt`, `data/biometric/BiometricHelper.kt`, and the `view/**/ViewModel.kt` files.
+2. From the command line:
+   ```bash
+   ./gradlew clean assembleDebug
+   ```
+   (On Windows: `gradlew.bat clean assembleDebug`.)
+3. Must finish with `BUILD SUCCESSFUL`. If KSP fails with `Unsupported class file major version`, recheck step 1.1 (JVM 17). If Hilt fails with `expected @HiltAndroidApp`, recheck step 1.9. Do **not** start Phase 2 until this gate is green.
 
 ---
 
@@ -638,41 +857,318 @@ The sync is structural, not manual: `getFavorites()` is a `Flow<List<MovieEntity
 
 ---
 
-## Phase 9 — Observability, Unit Tests & README
+## Phase 9 — Observability, Performance, Tests & README
 
-**Goal:** Structured observability layer, unit test coverage, and delivery-ready README.
+**Goal:** Production-grade observability covering render performance, frames/jank, crashes (fatal + non-fatal), key flow timings, and a CI performance regression gate. Plus unit test coverage and delivery-ready README.
 
-### 9.1 — Observability
+**Stack chosen (from decisions on 2026-05-16):**
 
-**Logging — Timber + structured tags**
-- `Timber.DebugTree` planted in `MovieFluxApp` (done in Phase 1).
-- Tag conventions: `[NETWORK]`, `[AUTH]`, `[BIOMETRIC]`, `[DB]`, `[NAV]`, `[PROFILE]`.
+| Layer | Tool | Role |
+|---|---|---|
+| Frame/render jank | **JankStats** (Jetpack) | Per-frame attribution to {screen, viewMode, scrolling}; in-app, free |
+| Cloud perf telemetry | **Firebase Performance Monitoring** | Auto screen-render + network traces, custom traces, app-start auto trace |
+| CI perf regression gate | **Macrobenchmark + Baseline Profile** | Startup/scroll benchmarks on real device in CI; baseline profile for AOT compile |
+| Recomposition hygiene | **Compose Compiler Stability Reports** | Build-time JSON flagging unstable params; zero runtime cost |
+| Fatal crashes + ANRs | **Firebase Crashlytics** | Industry standard, free, ANR detection |
+| Non-fatals + perf traces | **Sentry** | Compose screen tracking, breadcrumbs, transactions |
+| Structured logging | **Timber** | Local dev + breadcrumbs for both crash SDKs |
+| Sampling | **Sampled in production** | 100% in debug; 15% in release for high-volume events; 100% for errors |
 
-**Network observability** — extend `ApiKeyInterceptor`:
-- Log request URL + response code + duration in ms on every call.
-- Log error body on non-2xx responses.
+### 9.1 — Logging & analytics core
 
-**`analytics/AnalyticsTracker.kt`** — interface:
+**Timber + structured tags** — already planted in Phase 1.
+- Tag conventions: `[NETWORK]`, `[AUTH]`, `[BIOMETRIC]`, `[DB]`, `[NAV]`, `[PROFILE]`, `[RENDER]`, `[JANK]`, `[FUNNEL]`.
+- Custom `Timber.Tree` per build flavor: `DebugTree` in debug, `ReleaseTree` in release that forwards `WARN`/`ERROR` to Crashlytics + Sentry breadcrumbs and drops `VERBOSE`/`DEBUG`.
+
+**`analytics/AnalyticsTracker.kt`** — interface (unchanged):
 ```kotlin
 interface AnalyticsTracker {
     fun trackScreen(name: String)
     fun trackEvent(name: String, params: Map<String, Any> = emptyMap())
-    fun trackError(tag: String, throwable: Throwable)
+    fun trackError(tag: String, throwable: Throwable, isFatal: Boolean = false)
 }
 ```
 
-**`analytics/TimberAnalyticsTracker.kt`** routes all events to Timber. Acts as a drop-in slot for Firebase/Datadog later without changing call sites.
+**Implementations (composed in DI):**
+- `TimberAnalyticsTracker` — always-on local logging.
+- `FirebaseAnalyticsTracker` — forwards to Firebase Analytics + Performance custom attrs.
+- `SentryAnalyticsTracker` — forwards to Sentry as breadcrumbs + events.
+- `CrashlyticsErrorSink` — forwards `trackError` to Crashlytics `recordException` (or `log` for breadcrumbs).
+- `CompositeAnalyticsTracker(sinks: List<AnalyticsTracker>)` — fans out every call to all sinks; never throws (each sink wrapped in try/catch so one vendor outage doesn't break others).
+- `SampledAnalyticsTracker(delegate, policy: SamplingPolicy)` — outermost wrapper, decides per event whether to forward (see 9.10).
 
-Inject into all ViewModels. Call:
-- `trackScreen("home" | "favorites" | "profile" | "details" | "login")` in `init {}`.
-- `trackEvent("toggle_favorite", mapOf("movie_id" to id, "is_favorite" to flag))`.
-- `trackEvent("logout")` in `ProfileViewModel.confirmLogout()`.
-- `trackEvent("biometric_toggled", mapOf("enabled" to flag))` in `ProfileViewModel`.
-- `trackError(tag, exception)` in catch blocks.
+**`analytics/di/AnalyticsModule.kt`**:
+```kotlin
+@Provides @Singleton
+fun provideTracker(
+    timber: TimberAnalyticsTracker,
+    firebase: FirebaseAnalyticsTracker,
+    sentry: SentryAnalyticsTracker,
+    crashlytics: CrashlyticsErrorSink,
+    policy: SamplingPolicy
+): AnalyticsTracker = SampledAnalyticsTracker(
+    CompositeAnalyticsTracker(listOf(timber, firebase, sentry, crashlytics)),
+    policy
+)
+```
 
-**`analytics/di/AnalyticsModule.kt`** — `@Binds` `TimberAnalyticsTracker` → `AnalyticsTracker`.
+### 9.2 — Crash reporting: Crashlytics + Sentry
 
-### 9.2 — Unit Tests
+**Why both:** Crashlytics has the best ANR detection and free fatal-crash pipeline. Sentry has the best Compose screen tracking and ties non-fatals to performance transactions in one UI. Together, every fatal crash lands in two places (cheap insurance), but they have distinct lanes for everything else.
+
+**Crashlytics setup**
+- Plugins: `com.google.gms.google-services` + `com.google.firebase.crashlytics`.
+- `google-services.json` placed in `app/` (gitignored; CI provides via secret).
+- Initialized automatically by the gradle plugin via `MovieFluxApp`.
+- `FirebaseCrashlytics.getInstance().setUserId(hashedUserId)` set after login (SHA-256 of `"admin"` since it's mocked — still hash it for habit).
+- Custom keys per session: `build_type`, `screen` (updated on every `trackScreen`), `view_mode` (updated when Home/Favorites toggles).
+- Non-fatals: `crashlytics.recordException(throwable)` via `CrashlyticsErrorSink.trackError(...)` when `isFatal = false`.
+- Debug builds: `crashlytics.isCrashlyticsCollectionEnabled = BuildConfig.DEBUG.not()` so dev crashes don't pollute the dashboard.
+
+**Sentry setup**
+- `io.sentry:sentry-android:7.x` + `io.sentry:sentry-compose-android:7.x` (auto-instruments screen transitions + UI lifecycle).
+- DSN in `local.properties` → `BuildConfig.SENTRY_DSN`.
+- `SentryAndroid.init(context) { it.dsn = BuildConfig.SENTRY_DSN; it.tracesSampleRate = if (DEBUG) 1.0 else 0.15 }`.
+- Sentry auto-instruments OkHttp via its OkHttp integration → ties HTTP spans to user-facing transactions.
+- Release tracking: `release = "${BuildConfig.APPLICATION_ID}@${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}"`.
+
+**Test crash affordance (debug only)**
+- Hidden 5-tap gesture on Profile screen's version label → invokes `throw RuntimeException("Test crash")`. Disabled in release via `BuildConfig.DEBUG`.
+
+### 9.3 — Render performance: JankStats
+
+**Dependency:** `androidx.metrics:metrics-performance:1.0.0-beta01`.
+
+**`performance/JankReporter.kt`**
+```kotlin
+class JankReporter @Inject constructor(
+    private val tracker: AnalyticsTracker
+) : JankStats.OnFrameListener {
+    override fun onFrame(frameData: FrameData) {
+        if (!frameData.isJank) return
+        val states = frameData.states.associate { it.key to it.value }
+        tracker.trackEvent("frame_jank", states + mapOf(
+            "duration_ms" to frameData.frameDurationUiNanos / 1_000_000,
+            "is_jank" to true
+        ))
+    }
+}
+```
+
+**Activity-level wiring** — in `MainActivity.onCreate` after `setContent`:
+```kotlin
+val jankStats = JankStats.createAndTrack(window, jankReporter)
+lifecycle.addObserver(LifecycleEventObserver { _, e ->
+    jankStats.isTrackingEnabled = (e == ON_RESUME)
+})
+```
+
+**Composable state attribution** — `view/components/JankStateEffect.kt`:
+```kotlin
+@Composable
+fun JankStateEffect(vararg states: Pair<String, String>) {
+    val view = LocalView.current
+    DisposableEffect(states.toList()) {
+        val holder = PerformanceMetricsState.getHolderForHierarchy(view)
+        states.forEach { (k, v) -> holder.state?.putState(k, v) }
+        onDispose { states.forEach { (k, _) -> holder.state?.removeState(k) } }
+    }
+}
+```
+
+**Usage** — drop into every grid/list-bearing screen:
+```kotlin
+// HomeScreen
+JankStateEffect(
+    "screen"    to "home",
+    "view_mode" to state.viewMode.name,
+    "scrolling" to listState.isScrollInProgress.toString()
+)
+```
+
+Same for `FavoritesScreen` (with `"favorites"`) and `DetailsScreen` (with `"details"`).
+
+### 9.4 — Per-screen render timing
+
+**`performance/ScreenRenderTracker.kt`**
+- Modifier extension `Modifier.trackScreenRender(screen: String)`:
+  - Captures `System.nanoTime()` on first `onPlaced`.
+  - Hooks `Choreographer.getInstance().postFrameCallback` on the next frame.
+  - On frame callback fired, computes `durationMs = (frameTime - startTime) / 1_000_000` and emits `screen_rendered` event with `{ screen, duration_ms, is_cold_start }`.
+  - `is_cold_start` true only for the very first screen of the process (set a `@Singleton` flag on first call).
+
+**Cold-start delta**
+- `Process.getStartElapsedRealtime()` (API 26+) → captured in `MovieFluxApp.onCreate()` as `appStartElapsed`.
+- First `trackScreen("home")` after login computes `now - appStartElapsed` → emits `cold_start_to_home` event with `duration_ms`.
+- Cross-validated against Firebase Performance's auto `_app_start` trace.
+
+**Wire-up locations**
+- `LoginScreen`: `Modifier.trackScreenRender("login")` on root.
+- `HomeScreen`, `FavoritesScreen`, `ProfileScreen`, `DetailsScreen`: same.
+
+### 9.5 — Firebase Performance Monitoring
+
+**Setup**
+- Plugin `com.google.firebase.firebase-perf`.
+- Already provisioned by `google-services.json` from 9.2.
+
+**Auto-traces (no code)**
+- `_app_start` — process start → first activity drawn.
+- `_app_in_foreground_time` / `_app_in_background_time`.
+- HTTP request traces for OkHttp (automatic via plugin).
+- Screen rendering metrics (slow frames %, frozen frames %).
+
+**Custom traces** (`com.google.firebase.perf.metrics.Trace`)
+- `HomeViewModel.loadMovies()`:
+  ```kotlin
+  val trace = FirebasePerformance.getInstance().newTrace("home_load").apply { start() }
+  trace.putAttribute("page", currentPage.toString())
+  runCatching { useCase(currentPage) }
+    .onSuccess { trace.putMetric("count", it.size.toLong()) }
+    .also { trace.stop() }
+  ```
+- Same pattern for `DetailsViewModel.loadDetail`, `FavoritesViewModel` init, `LoginViewModel.login`.
+
+**Custom HTTP attributes** — extend `ApiKeyInterceptor` to call `HttpMetric.putAttribute("endpoint", path)` before `start()`.
+
+### 9.6 — Network + image + DB instrumentation
+
+**Network (extend Phase 1's `ApiKeyInterceptor`)**
+- Emit `tracker.trackEvent("network_request", { endpoint, status, duration_ms, response_bytes })`.
+- On non-2xx: emit `trackError("[NETWORK]", HttpException(response))`.
+- Sentry auto-instrumentation already wraps this in spans.
+
+**Coil image load — `ImageLoader.eventListener`**
+```kotlin
+ImageLoader.Builder(context)
+  .eventListener(object : EventListener {
+      override fun onSuccess(request: ImageRequest, result: SuccessResult) {
+          tracker.trackEvent("image_load", mapOf(
+              "duration_ms" to result.metadata.diskCacheKey?.let { 0L } ?: -1L,  // approx
+              "data_source" to result.dataSource.name,   // MEMORY_CACHE / DISK / NETWORK
+              "from_cache"  to (result.dataSource != DataSource.NETWORK)
+          ))
+      }
+      override fun onError(request: ImageRequest, result: ErrorResult) {
+          tracker.trackError("[IMAGE]", result.throwable)
+      }
+  })
+  .build()
+```
+- Provide this `ImageLoader` via Hilt (`@Provides @Singleton`) and pass to `AsyncImage(imageLoader = ...)` everywhere.
+
+**Room — DAO method tracing**
+- Wrap each `MovieDao` method call from the repository in `androidx.tracing.Trace.beginSection("dao_${methodName}")` / `endSection()`. Visible in Android Studio Profiler systrace.
+- For slow queries: `RoomDatabase.QueryCallback` that emits `db_query` event when `executionTimeMs > 100`.
+
+### 9.7 — User flow funnels
+
+**`analytics/FunnelTracker.kt`**
+- In-memory `Map<String, Long>` keyed by flow name → start timestamp.
+- API: `start(flow: String)`, `step(flow: String, step: String)`, `complete(flow: String)`, `abandon(flow: String, reason: String)`.
+- Every step emits `funnel_step` event with `{ flow, step, ms_since_start, ms_since_previous_step }`.
+- `complete` emits `funnel_complete` with total duration; `abandon` emits `funnel_abandoned`.
+
+**Auth funnel wiring**
+- `LoginScreen` Sign-in button click → `funnel.start("auth"); funnel.step("auth", "login_clicked")`.
+- `LoginViewModel` emits `Success` → `funnel.step("auth", "login_success")`.
+- First `screen_rendered` event for `home` → `funnel.complete("auth")` (auth funnel total ms = login-to-home).
+- `LoginViewModel` emits `Error` → `funnel.abandon("auth", reason = "invalid_credentials")`.
+
+**Biometric outcome** (not strictly a funnel, but related)
+- `BiometricHelper.authenticate` callbacks → `trackEvent("biometric_result", { outcome: success|cancel|error|no_hardware, duration_ms })`.
+
+### 9.8 — Compose render diagnostics
+
+**Compose Compiler Stability Reports**
+- Add to `:app/build.gradle.kts`:
+  ```kotlin
+  kotlinOptions {
+      freeCompilerArgs += listOf(
+          "-P", "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=${rootProject.layout.buildDirectory.get().asFile.absolutePath}/compose_reports",
+          "-P", "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=${rootProject.layout.buildDirectory.get().asFile.absolutePath}/compose_metrics"
+      )
+  }
+  ```
+- After `./gradlew assembleRelease`, review `build/compose_reports/app_release-classes.txt`.
+- Pre-release checklist item: any composable with `runtime-determined stability` params should be promoted to `@Immutable`/`@Stable` data class or `ImmutableList` (kotlinx-immutable-collections) before shipping.
+
+**Compose runtime trace markers** (for Android Studio Profiler)
+- Wrap hot composables: `Trace.beginSection("HomeGrid")` ... `Trace.endSection()` inside `HomeScreen`'s grid block, `FavoritesGrid`, `MovieCard` (no — too granular; keep at screen level).
+- Inspect via Profiler → CPU → System Trace.
+
+**Recomposition counts (debug only)**
+- Add `recompose-highlighter` dev modifier on suspect composables in debug builds:
+  ```kotlin
+  Modifier.then(if (BuildConfig.DEBUG) Modifier.recomposeHighlighter() else Modifier)
+  ```
+
+### 9.9 — Macrobenchmark + Baseline Profile (CI gate)
+
+**New module:** `benchmark/`
+- `androidx.benchmark:benchmark-macro-junit4:1.2.4`.
+- Manifest declares benchmark `<profileable>` access.
+
+**Tests**
+- `StartupBenchmark` — `@RunWith(AndroidJUnit4::class)`; measures `StartupTimingMetric` for `COLD`, `WARM`, `HOT`. Target: cold start p95 < 1.5s on a Pixel 6.
+- `HomeScrollBenchmark` — `FrameTimingMetric` while scrolling Home grid 10 pages. Target: p99 frame < 50ms.
+- `HomeListScrollBenchmark` — same for LIST viewMode (compare against GRID).
+- `FavoritesScrollBenchmark` — same for Favorites (after seeding 100 favorites via a test-only DAO entry point).
+- `LoginToHomeBenchmark` — `TraceSectionMetric("home_load")` → measures network-bound first paint.
+
+**Baseline Profile**
+- `BaselineProfileGenerator` test runs a critical user journey: cold start → scroll Home 5 pages → tap movie → view Details → back. Generates `baseline-prof.txt` written into `:app/src/main/`.
+- Reduces cold start by 20–40% typically.
+
+**CI**
+- `./gradlew :benchmark:connectedBenchmarkAndroidTest` runs on a managed device (Google's `Pixel 6 API 33` via `com.android.test` plugin).
+- Output JSON parsed by a CI step (`scripts/check_benchmarks.sh`) — fails the PR if regressions exceed thresholds (configured in `benchmark/thresholds.yaml`).
+
+### 9.10 — Sampling + privacy policy
+
+**`analytics/SamplingPolicy.kt`**
+```kotlin
+data class SamplingPolicy(
+    val errorRate: Float = 1.0f,            // never drop errors
+    val funnelRate: Float = 1.0f,           // never drop funnel steps (low volume)
+    val screenRenderRate: Float = if (DEBUG) 1.0f else 0.15f,
+    val jankRate: Float = if (DEBUG) 1.0f else 0.15f,
+    val networkRate: Float = if (DEBUG) 1.0f else 0.20f,
+    val imageRate: Float = if (DEBUG) 1.0f else 0.05f,  // highest volume
+    val defaultRate: Float = if (DEBUG) 1.0f else 0.20f
+)
+```
+
+**`SampledAnalyticsTracker`** routes events by name → rate → `Random.nextFloat() < rate ? forward : drop`. Errors always forwarded. Sentry has its own `tracesSampleRate` for transactions — kept aligned.
+
+**Privacy**
+- User ID hashed (SHA-256) before reaching any vendor SDK.
+- No PII in event params — movie titles OK; usernames/emails forbidden by lint rule (custom `AnalyticsParamLint` check, or just a code review checklist).
+- Crashlytics + Sentry both configured `setCollectionEnabled(BuildConfig.DEBUG.not())` — debug builds don't send.
+- README documents what telemetry is collected and how to opt out (future: Profile toggle).
+
+### 9.11 — Analytics call-site map
+
+| Where | Event / call | Why |
+|---|---|---|
+| Every ViewModel `init` | `trackScreen(name)` | Screen funnel + Crashlytics + Sentry custom key |
+| `LoginViewModel.login` start | `funnel.start("auth"); funnel.step("auth", "login_clicked")` | Auth funnel start |
+| `LoginViewModel` Success | `funnel.step("auth", "login_success")` + Firebase trace `login` stop | Step 2 of funnel |
+| First `screen_rendered("home")` after Success | `funnel.complete("auth")` | Auth flow timing |
+| `LoginViewModel` Error | `funnel.abandon("auth", reason)` + `trackError` | Error visibility |
+| `BiometricHelper` callback | `trackEvent("biometric_result", { outcome, duration_ms })` | Device-issue surfacing |
+| `Profile.confirmLogout` | `trackEvent("logout")` | User-flow metric |
+| `Profile.setBiometricEnabled` | `trackEvent("biometric_toggled", { enabled })` | Settings telemetry |
+| `Home/Favorites.setViewMode` | `trackEvent("view_mode_changed", { screen, mode })` | Feature usage |
+| `Home/Favorites/Details.toggleFavorite` | `trackEvent("toggle_favorite", { movie_id, is_favorite })` | Engagement |
+| `ApiKeyInterceptor` | `trackEvent("network_request", { endpoint, status, duration_ms })` | Per-call telemetry |
+| Coil EventListener | `trackEvent("image_load", { data_source, duration_ms })` | Image perf |
+| JankStats `onFrame` | `trackEvent("frame_jank", { duration_ms, screen, view_mode, scrolling })` | Render perf |
+| `Modifier.trackScreenRender` | `trackEvent("screen_rendered", { screen, duration_ms, is_cold_start })` | Render perf |
+| Any catch block | `trackError(tag, throwable, isFatal = false)` | Non-fatal capture |
+| `UncaughtExceptionHandler` (default chain) | Crashlytics + Sentry handle automatically | Fatal capture |
+
+### 9.12 — Unit Tests
 
 **`HomeViewModelTest`**
 - `loadMovies()` emits `Success` with movie list.
@@ -714,15 +1210,36 @@ Inject into all ViewModels. Call:
 - Selected state reflects current route.
 - Bottom bar is hidden on Details route, visible on Home/Favorites/Profile.
 
+**`AnalyticsTrackerTest`** *(new — guards the observability core)*
+- `CompositeAnalyticsTracker` forwards a call to every sink even if one throws.
+- `SampledAnalyticsTracker` always forwards `trackError` regardless of `errorRate < 1.0`.
+- `SampledAnalyticsTracker` drops a `frame_jank` event when `Random.nextFloat() >= jankRate`.
+- `FunnelTracker` emits `funnel_complete` with the correct total duration; double-completing a flow is a no-op.
+
+**`JankReporterTest`** *(new — unit)*
+- `onFrame(isJank = false)` emits nothing.
+- `onFrame(isJank = true, states = [screen=home, view_mode=GRID])` emits `frame_jank` with all state attributes merged.
+
 Use `kotlinx-coroutines-test` (`runTest`, `TestDispatcher`) + MockK + Turbine for unit tests; Compose UI testing rule for the BottomNavBar test.
 
-### 9.3 — README.md
+**Macrobenchmark suite (from 9.9, run in CI, not part of `:app`'s `test` source set):**
+- `StartupBenchmark` — cold/warm/hot timing.
+- `HomeScrollBenchmark` (GRID + LIST).
+- `FavoritesScrollBenchmark`.
+- `LoginToHomeBenchmark`.
+- All ship JSON metrics; thresholds asserted in `scripts/check_benchmarks.sh`.
+
+### 9.13 — README.md
 Sections:
-1. **API Key setup** — add `TMDB_API_KEY=your_key` to `local.properties`.
+1. **API Key setup** — add `TMDB_API_KEY=your_key` and `SENTRY_DSN=your_dsn` to `local.properties`. `google-services.json` must be placed in `app/` (CI injects via secret, dev gets it from the shared 1Password vault).
 2. **Biometric testing** — enroll a fingerprint in the emulator (`Settings > Security > Fingerprint`), log in, open Profile, toggle "Biometric login" on, restart app.
 3. **Navigation structure** — diagram of the nested NavHost (AuthGraph + MainGraph with tabs).
 4. **Architecture decisions** — MVVM + Clean Architecture, Hilt, Room + Flow for cross-screen sync.
-5. **AI usage** — document how Claude Code was used for scaffolding and plan generation.
+5. **Observability stack** — what each tool does (table from Phase 9 intro), how events flow through `CompositeAnalyticsTracker`, where dashboards live (Firebase + Sentry URLs). Includes the analytics call-site map (9.11).
+6. **Running benchmarks** — `./gradlew :benchmark:connectedBenchmarkAndroidTest`; how to read the JSON; current thresholds; how the Baseline Profile is regenerated.
+7. **Reading Compose Compiler reports** — where `build/compose_reports/` lives, how to spot unstable params, how to fix with `@Immutable` / `ImmutableList`.
+8. **Sampling + privacy** — what telemetry is collected, sampling rates per event type, hashing of user IDs, how debug builds are excluded from production sinks.
+9. **AI usage** — document how Claude Code was used for scaffolding and plan generation.
 
 ---
 
@@ -755,4 +1272,9 @@ Phases 4 and 5 can run in parallel after Phase 3 (different files, no shared cod
 | Biometric opt-in | First-login `AlertDialog` after Success | Toggle row on Profile screen (Day 2 dialog removed) |
 | Phase count | 7 days | 9 phases — new Phase 3 (nav restructure) + new Phase 4 (profile) inserted between auth and feature screens |
 | `Screen` sealed class | 4 routes (Login, Home, Favorites, Details) | 6 routes + 2 graph routes: AuthGraph, MainGraph, Login, Home, Favorites, Profile, Details |
-| Tests | Home / Repository / Login VM tests | + ProfileViewModelTest + BottomNavBar instrumented test |
+| Tests | Home / Repository / Login VM tests | + Profile / Favorites / Details VM tests + BottomNavBar instrumented + AnalyticsTracker + JankReporter + 5 Macrobenchmarks |
+| Movie grid item | Original spec: heart overlay, star rating | Matches `docs/design/Filme Item.png`: poster + title (1-line) + `X/5` rating + heart `IconButton` at bottom-right of poster (semi-transparent black circle) |
+| Home / Favorites list mode | Grid only | Toggle in TopAppBar switches between Grid (`MovieCard`) and List (`MovieListItem`); per-screen independent state |
+| Login screen | Stub | Full design built from `docs/design/Login.png` using existing color tokens (`BackgroundDark`, `TealGreenLight`, `TealGreen`); SVG logo + "MovieFlux" wordmark; pill button |
+| Observability | Timber + AnalyticsTracker interface | Full stack: Timber + JankStats + Firebase Performance + Crashlytics + Sentry + Macrobenchmark/Baseline Profile + Compose Compiler reports; sampled at 15% in release; funnel tracker; per-screen render timing; cold-start delta |
+| Crash reporting | Not addressed | Crashlytics (fatal + ANR) + Sentry (non-fatal + perf transactions); both wired through `CompositeAnalyticsTracker` |

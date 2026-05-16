@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.movieflux.domain.model.MovieModel
+import com.example.movieflux.performance.LogRecompositions
+import com.example.movieflux.performance.logDrawTime
 
 @Composable
 fun MovieCard(
@@ -35,9 +37,10 @@ fun MovieCard(
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    LogRecompositions("MovieCard[${movie.id}]")
     Card(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.logDrawTime("MovieCard[${movie.id}]"),
         shape = RoundedCornerShape(8.dp)
     ) {
         Box {

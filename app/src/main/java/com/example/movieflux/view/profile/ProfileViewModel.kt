@@ -1,10 +1,15 @@
 package com.example.movieflux.view.profile
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.movieflux.BuildConfig
+import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.biometric.BiometricAvailability
 import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,17 +17,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 sealed class ProfileUiEvent {
     object LogoutComplete : ProfileUiEvent()
     data class BiometricUnavailable(val reason: String) : ProfileUiEvent()
 }
 
-// TODO Phase 1/2: replace with @HiltViewModel + @Inject constructor(authPreferences, biometricHelper, @ApplicationContext context)
-class ProfileViewModel : ViewModel() {
-
-    private val authPreferences = AuthPreferences()
-    private val biometricHelper = BiometricHelper()
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val authPreferences: AuthPreferences,
+    private val biometricHelper: BiometricHelper,
+    private val tracker: AnalyticsTracker,
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
@@ -31,18 +39,19 @@ class ProfileViewModel : ViewModel() {
     val events = _events.receiveAsFlow()
 
     init {
+        tracker.trackScreen("profile")
         _uiState.update {
             it.copy(
                 biometricEnabled = authPreferences.biometricEnabled,
-                biometricAvailable = biometricHelper.canAuthenticate() == BiometricAvailability.Available,
-                appVersion = "1.0.0" // TODO Phase 1: replace with BuildConfig.VERSION_NAME
+                biometricAvailable = biometricHelper.canAuthenticate(context) == BiometricAvailability.Available,
+                appVersion = BuildConfig.VERSION_NAME
             )
         }
     }
 
     fun setBiometricEnabled(enabled: Boolean) {
         if (enabled) {
-            when (biometricHelper.canAuthenticate()) {
+            when (biometricHelper.canAuthenticate(context)) {
                 BiometricAvailability.Available -> {
                     authPreferences.biometricEnabled = true
                     _uiState.update { it.copy(biometricEnabled = true) }
@@ -69,6 +78,7 @@ class ProfileViewModel : ViewModel() {
     }
 
     fun confirmLogout() {
+        tracker.trackEvent("logout")
         authPreferences.clear()
         emitEvent(ProfileUiEvent.LogoutComplete)
     }

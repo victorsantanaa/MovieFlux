@@ -1,6 +1,14 @@
 package com.example.movieflux
 
 import android.app.Application
+import com.example.movieflux.BuildConfig
+import dagger.hilt.android.HiltAndroidApp
+import timber.log.Timber
 
-// TODO Phase 1: restore @HiltAndroidApp + Timber.plant
-class MovieFluxApp : Application()
+@HiltAndroidApp
+class MovieFluxApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
+    }
+}
