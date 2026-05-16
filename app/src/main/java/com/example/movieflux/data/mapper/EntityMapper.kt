@@ -7,9 +7,9 @@ fun MovieEntity.toDomain(): MovieModel {
     return MovieModel(
         id = id,
         title = title,
-        overview = "",
+        overview = overview,
         posterUrl = posterUrl,
-        rating = 0.0,
+        rating = rating,
         genreIds = emptyList(),
         isFavorite = true
     )
@@ -19,6 +19,8 @@ fun MovieModel.toEntity(): MovieEntity {
     return MovieEntity(
         id = id,
         title = title,
-        posterUrl = posterUrl
+        posterUrl = posterUrl,
+        overview = overview,
+        rating = rating
     )
 }
