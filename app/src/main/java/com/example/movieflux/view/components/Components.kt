@@ -26,7 +26,13 @@ fun PrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: ButtonSize = ButtonSize.MEDIUM,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    colors: androidx.compose.material3.ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+        disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
+    )
 ) {
     val (buttonHeight, textStyle, buttonModifier) = when (size) {
         ButtonSize.SMALL -> {
@@ -65,12 +71,7 @@ fun PrimaryButton(
         onClick = onClick,
         modifier = buttonModifier,
         enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
-        ),
+        colors = colors,
         shape = MaterialTheme.shapes.medium
     ) {
         Text(
