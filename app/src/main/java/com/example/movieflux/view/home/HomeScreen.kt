@@ -2,6 +2,7 @@ package com.example.movieflux.view.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,8 +26,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.movieflux.view.components.EmptyView
+import com.example.movieflux.view.components.ErrorView
+import com.example.movieflux.view.components.LoadingView
 import com.example.movieflux.view.components.MovieCard
-import com.example.movieflux.view.components.MovieCardSkeleton
+import com.example.movieflux.view.components.SearchBar
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +38,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun HomeScreen(onMovieClick: (Int) -> Unit) {
     val vm: HomeViewModel = viewModel()
     val uiState by vm.uiState.collectAsState()
+    val searchQuery by vm.searchQuery.collectAsState()
     val gridState = rememberLazyGridState()
 
     LaunchedEffect(gridState) {
@@ -48,64 +53,57 @@ fun HomeScreen(onMovieClick: (Int) -> Unit) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Movies") }) }
+        topBar = {
+            Column {
+                TopAppBar(title = { Text("Movies") })
+                SearchBar(
+                    query = searchQuery,
+                    onQueryChange = vm::setSearchQuery
+                )
+            }
+        }
     ) { innerPadding ->
         when (val state = uiState) {
-            is HomeUiState.Loading -> {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                ) {
-                    items(6) {
-                        MovieCardSkeleton(modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
+            is HomeUiState.Loading -> LoadingView(modifier = Modifier.padding(innerPadding))
 
-            is HomeUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = state.message)
-                }
-            }
+            is HomeUiState.Error -> ErrorView(
+                message = state.message,
+                onRetry = vm::loadMovies,
+                modifier = Modifier.padding(innerPadding)
+            )
 
             is HomeUiState.Success -> {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    state = gridState,
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                ) {
-                    items(state.movies, key = { it.id }) { movie ->
-                        MovieCard(
-                            movie = movie,
-                            onClick = { onMovieClick(movie.id) },
-                            onToggleFavorite = { vm.toggleFavorite(movie) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    if (state.isLoadingMore) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
+                if (state.movies.isEmpty()) {
+                    EmptyView(modifier = Modifier.padding(innerPadding))
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        state = gridState,
+                        contentPadding = PaddingValues(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    ) {
+                        items(state.movies, key = { it.id }) { movie ->
+                            MovieCard(
+                                movie = movie,
+                                onClick = { onMovieClick(movie.id) },
+                                onToggleFavorite = { vm.toggleFavorite(movie) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        if (state.isLoadingMore) {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
                             }
                         }
                     }
