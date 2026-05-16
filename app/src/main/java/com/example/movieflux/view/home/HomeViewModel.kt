@@ -51,7 +51,7 @@ class HomeViewModel @Inject constructor(
             if (query.isBlank()) {
                 combine(_popularMovies, _loadState) { movies, state -> movies to state }
             } else {
-                repository.searchMovies(query).map { results -> results to LoadState() }
+                repository.searchMovies(query).map { results -> results to LoadState(isInitialLoading = false) }
             }
         }
 
@@ -103,7 +103,7 @@ class HomeViewModel @Inject constructor(
             try {
                 useCase(currentPage).collect { newMovies ->
                     if (newMovies.isEmpty()) canLoadMore = false
-                    else _popularMovies.update { current -> current + newMovies }
+                    else _popularMovies.update { current -> (current + newMovies).distinctBy { it.id } }
                     _loadState.update { it.copy(isLoadingMore = false) }
                 }
             } catch (e: Exception) {

@@ -20,16 +20,25 @@ class FavoritesViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _viewMode = MutableStateFlow(ViewMode.GRID)
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
 
     val uiState: StateFlow<FavoritesUiState> = combine(
         repository.getFavorites(),
-        _viewMode
-    ) { movies, viewMode ->
-        FavoritesUiState.Success(movies = movies, viewMode = viewMode)
+        _viewMode,
+        _searchQuery
+    ) { movies, viewMode, query ->
+        val filtered = if (query.isBlank()) movies
+                       else movies.filter { it.title.contains(query, ignoreCase = true) }
+        FavoritesUiState.Success(movies = filtered, viewMode = viewMode)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FavoritesUiState.Loading)
 
     fun toggleFavorite(movie: MovieModel) {
         viewModelScope.launch { repository.toggleFavorite(movie) }
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     fun setViewMode(mode: ViewMode) {
