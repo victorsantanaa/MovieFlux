@@ -6,14 +6,20 @@ import com.example.movieflux.data.repository.FakeMovieRepository
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 // TODO Phase 1/2: replace with @HiltViewModel + @Inject constructor(useCase, repository)
 class HomeViewModel : ViewModel() {
 
@@ -29,14 +35,27 @@ class HomeViewModel : ViewModel() {
         val error: String? = null
     )
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
+    private val _popularMovies = MutableStateFlow<List<MovieModel>>(emptyList())
     private val _loadState = MutableStateFlow(LoadState())
-    private val _accumulatedMovies = MutableStateFlow<List<MovieModel>>(emptyList())
+
+    private val activeMovies: Flow<Pair<List<MovieModel>, LoadState>> = _searchQuery
+        .debounce(300L)
+        .distinctUntilChanged()
+        .flatMapLatest { query ->
+            if (query.isBlank()) {
+                combine(_popularMovies, _loadState) { movies, state -> movies to state }
+            } else {
+                repository.searchMovies(query).map { results -> results to LoadState() }
+            }
+        }
 
     val uiState: StateFlow<HomeUiState> = combine(
-        _accumulatedMovies,
-        _loadState,
+        activeMovies,
         repository.getFavorites()
-    ) { movies, loadState, favorites ->
+    ) { (movies, loadState), favorites ->
         when {
             loadState.error != null -> HomeUiState.Error(loadState.error)
             loadState.isInitialLoading -> HomeUiState.Loading
@@ -57,38 +76,39 @@ class HomeViewModel : ViewModel() {
     fun loadMovies() {
         currentPage = 1
         canLoadMore = true
-        _accumulatedMovies.value = emptyList()
+        _popularMovies.value = emptyList()
         _loadState.value = LoadState(isInitialLoading = true)
         viewModelScope.launch {
             try {
                 useCase(currentPage).collect { movies ->
-                    _accumulatedMovies.value = movies
+                    _popularMovies.value = movies
                     _loadState.update { it.copy(isInitialLoading = false) }
                 }
             } catch (e: Exception) {
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Unknown error") }
+                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Something went wrong") }
             }
         }
     }
 
     fun loadNextPage() {
-        if (!canLoadMore || _loadState.value.isLoadingMore) return
+        if (_searchQuery.value.isNotBlank() || !canLoadMore || _loadState.value.isLoadingMore) return
         _loadState.update { it.copy(isLoadingMore = true) }
         currentPage++
         viewModelScope.launch {
             try {
                 useCase(currentPage).collect { newMovies ->
-                    if (newMovies.isEmpty()) {
-                        canLoadMore = false
-                    } else {
-                        _accumulatedMovies.update { current -> current + newMovies }
-                    }
+                    if (newMovies.isEmpty()) canLoadMore = false
+                    else _popularMovies.update { current -> current + newMovies }
                     _loadState.update { it.copy(isLoadingMore = false) }
                 }
             } catch (e: Exception) {
                 _loadState.update { it.copy(isLoadingMore = false) }
             }
         }
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     fun toggleFavorite(movie: MovieModel) {
