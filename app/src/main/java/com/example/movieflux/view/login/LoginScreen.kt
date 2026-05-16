@@ -3,7 +3,6 @@ package com.example.movieflux.view.login
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +16,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -44,9 +41,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.movieflux.ui.theme.BackgroundDark
-import com.example.movieflux.ui.theme.TealGreen
 import com.example.movieflux.ui.theme.TealGreenLight
 import com.example.movieflux.view.components.ButtonSize
+import com.example.movieflux.view.components.MovieFluxLogo
 import com.example.movieflux.view.components.PrimaryButton
 
 @Composable
@@ -78,21 +75,7 @@ fun LoginScreen(
         ) {
             Spacer(modifier = Modifier.weight(1f))
 
-            // Logo / wordmark
-            Row {
-                Text(
-                    text = "Movie",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = TealGreenLight.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Light
-                )
-                Text(
-                    text = "Flux",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = TealGreenLight,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            MovieFluxLogo()
 
             Spacer(modifier = Modifier.height(48.dp))
 

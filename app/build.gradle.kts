@@ -94,6 +94,9 @@ dependencies {
     // Compose extras
     implementation(libs.androidx.compose.material.icons.extended)
 
+    // AppCompat (FragmentActivity base for BiometricPrompt)
+    implementation(libs.androidx.appcompat)
+
     // Security / Biometric
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.biometric)

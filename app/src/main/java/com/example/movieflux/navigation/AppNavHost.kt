@@ -9,10 +9,13 @@ import com.example.movieflux.view.login.LoginScreen
 import com.example.movieflux.view.main.MainScaffold
 
 @Composable
-fun AppNavHost(navController: NavHostController) {
+fun AppNavHost(
+    navController: NavHostController,
+    startDestination: String = Screen.AuthGraph.route
+) {
     NavHost(
         navController = navController,
-        startDestination = Screen.AuthGraph.route
+        startDestination = startDestination
     ) {
         navigation(
             route = Screen.AuthGraph.route,

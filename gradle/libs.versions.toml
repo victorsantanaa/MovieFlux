@@ -22,6 +22,7 @@ lifecycleViewmodel = "2.10.0"
 securityCrypto = "1.1.0-alpha06"
 biometric = "1.2.0-alpha05"
 timber = "5.0.1"
+appcompat = "1.7.0"
 coroutinesTest = "1.8.1"
 mockk = "1.13.12"
 turbine = "1.1.0"
@@ -70,6 +71,9 @@ androidx-compose-material-icons-extended = { group = "androidx.compose.material"
 # Security / Biometric
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+
+# AppCompat (required for FragmentActivity / BiometricPrompt)
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 
 # Logging
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
