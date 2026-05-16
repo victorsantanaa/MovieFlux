@@ -29,19 +29,14 @@ fun AppNavHost(navController: NavHostController) {
             }
         }
 
-        navigation(
-            route = Screen.MainGraph.route,
-            startDestination = Screen.Home.route
-        ) {
-            composable(Screen.MainGraph.route) {
-                MainScaffold(
-                    onLogout = {
-                        navController.navigate(Screen.AuthGraph.route) {
-                            popUpTo(0) { inclusive = true }
-                        }
+        composable(Screen.MainGraph.route) {
+            MainScaffold(
+                onLogout = {
+                    navController.navigate(Screen.AuthGraph.route) {
+                        popUpTo(0) { inclusive = true }
                     }
-                )
-            }
+                }
+            )
         }
     }
 }
