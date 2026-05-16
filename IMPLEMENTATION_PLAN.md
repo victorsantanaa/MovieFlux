@@ -638,41 +638,318 @@ The sync is structural, not manual: `getFavorites()` is a `Flow<List<MovieEntity
 
 ---
 
-## Phase 9 — Observability, Unit Tests & README
+## Phase 9 — Observability, Performance, Tests & README
 
-**Goal:** Structured observability layer, unit test coverage, and delivery-ready README.
+**Goal:** Production-grade observability covering render performance, frames/jank, crashes (fatal + non-fatal), key flow timings, and a CI performance regression gate. Plus unit test coverage and delivery-ready README.
 
-### 9.1 — Observability
+**Stack chosen (from decisions on 2026-05-16):**
 
-**Logging — Timber + structured tags**
-- `Timber.DebugTree` planted in `MovieFluxApp` (done in Phase 1).
-- Tag conventions: `[NETWORK]`, `[AUTH]`, `[BIOMETRIC]`, `[DB]`, `[NAV]`, `[PROFILE]`.
+| Layer | Tool | Role |
+|---|---|---|
+| Frame/render jank | **JankStats** (Jetpack) | Per-frame attribution to {screen, viewMode, scrolling}; in-app, free |
+| Cloud perf telemetry | **Firebase Performance Monitoring** | Auto screen-render + network traces, custom traces, app-start auto trace |
+| CI perf regression gate | **Macrobenchmark + Baseline Profile** | Startup/scroll benchmarks on real device in CI; baseline profile for AOT compile |
+| Recomposition hygiene | **Compose Compiler Stability Reports** | Build-time JSON flagging unstable params; zero runtime cost |
+| Fatal crashes + ANRs | **Firebase Crashlytics** | Industry standard, free, ANR detection |
+| Non-fatals + perf traces | **Sentry** | Compose screen tracking, breadcrumbs, transactions |
+| Structured logging | **Timber** | Local dev + breadcrumbs for both crash SDKs |
+| Sampling | **Sampled in production** | 100% in debug; 15% in release for high-volume events; 100% for errors |
 
-**Network observability** — extend `ApiKeyInterceptor`:
-- Log request URL + response code + duration in ms on every call.
-- Log error body on non-2xx responses.
+### 9.1 — Logging & analytics core
 
-**`analytics/AnalyticsTracker.kt`** — interface:
+**Timber + structured tags** — already planted in Phase 1.
+- Tag conventions: `[NETWORK]`, `[AUTH]`, `[BIOMETRIC]`, `[DB]`, `[NAV]`, `[PROFILE]`, `[RENDER]`, `[JANK]`, `[FUNNEL]`.
+- Custom `Timber.Tree` per build flavor: `DebugTree` in debug, `ReleaseTree` in release that forwards `WARN`/`ERROR` to Crashlytics + Sentry breadcrumbs and drops `VERBOSE`/`DEBUG`.
+
+**`analytics/AnalyticsTracker.kt`** — interface (unchanged):
 ```kotlin
 interface AnalyticsTracker {
     fun trackScreen(name: String)
     fun trackEvent(name: String, params: Map<String, Any> = emptyMap())
-    fun trackError(tag: String, throwable: Throwable)
+    fun trackError(tag: String, throwable: Throwable, isFatal: Boolean = false)
 }
 ```
 
-**`analytics/TimberAnalyticsTracker.kt`** routes all events to Timber. Acts as a drop-in slot for Firebase/Datadog later without changing call sites.
+**Implementations (composed in DI):**
+- `TimberAnalyticsTracker` — always-on local logging.
+- `FirebaseAnalyticsTracker` — forwards to Firebase Analytics + Performance custom attrs.
+- `SentryAnalyticsTracker` — forwards to Sentry as breadcrumbs + events.
+- `CrashlyticsErrorSink` — forwards `trackError` to Crashlytics `recordException` (or `log` for breadcrumbs).
+- `CompositeAnalyticsTracker(sinks: List<AnalyticsTracker>)` — fans out every call to all sinks; never throws (each sink wrapped in try/catch so one vendor outage doesn't break others).
+- `SampledAnalyticsTracker(delegate, policy: SamplingPolicy)` — outermost wrapper, decides per event whether to forward (see 9.10).
 
-Inject into all ViewModels. Call:
-- `trackScreen("home" | "favorites" | "profile" | "details" | "login")` in `init {}`.
-- `trackEvent("toggle_favorite", mapOf("movie_id" to id, "is_favorite" to flag))`.
-- `trackEvent("logout")` in `ProfileViewModel.confirmLogout()`.
-- `trackEvent("biometric_toggled", mapOf("enabled" to flag))` in `ProfileViewModel`.
-- `trackError(tag, exception)` in catch blocks.
+**`analytics/di/AnalyticsModule.kt`**:
+```kotlin
+@Provides @Singleton
+fun provideTracker(
+    timber: TimberAnalyticsTracker,
+    firebase: FirebaseAnalyticsTracker,
+    sentry: SentryAnalyticsTracker,
+    crashlytics: CrashlyticsErrorSink,
+    policy: SamplingPolicy
+): AnalyticsTracker = SampledAnalyticsTracker(
+    CompositeAnalyticsTracker(listOf(timber, firebase, sentry, crashlytics)),
+    policy
+)
+```
 
-**`analytics/di/AnalyticsModule.kt`** — `@Binds` `TimberAnalyticsTracker` → `AnalyticsTracker`.
+### 9.2 — Crash reporting: Crashlytics + Sentry
 
-### 9.2 — Unit Tests
+**Why both:** Crashlytics has the best ANR detection and free fatal-crash pipeline. Sentry has the best Compose screen tracking and ties non-fatals to performance transactions in one UI. Together, every fatal crash lands in two places (cheap insurance), but they have distinct lanes for everything else.
+
+**Crashlytics setup**
+- Plugins: `com.google.gms.google-services` + `com.google.firebase.crashlytics`.
+- `google-services.json` placed in `app/` (gitignored; CI provides via secret).
+- Initialized automatically by the gradle plugin via `MovieFluxApp`.
+- `FirebaseCrashlytics.getInstance().setUserId(hashedUserId)` set after login (SHA-256 of `"admin"` since it's mocked — still hash it for habit).
+- Custom keys per session: `build_type`, `screen` (updated on every `trackScreen`), `view_mode` (updated when Home/Favorites toggles).
+- Non-fatals: `crashlytics.recordException(throwable)` via `CrashlyticsErrorSink.trackError(...)` when `isFatal = false`.
+- Debug builds: `crashlytics.isCrashlyticsCollectionEnabled = BuildConfig.DEBUG.not()` so dev crashes don't pollute the dashboard.
+
+**Sentry setup**
+- `io.sentry:sentry-android:7.x` + `io.sentry:sentry-compose-android:7.x` (auto-instruments screen transitions + UI lifecycle).
+- DSN in `local.properties` → `BuildConfig.SENTRY_DSN`.
+- `SentryAndroid.init(context) { it.dsn = BuildConfig.SENTRY_DSN; it.tracesSampleRate = if (DEBUG) 1.0 else 0.15 }`.
+- Sentry auto-instruments OkHttp via its OkHttp integration → ties HTTP spans to user-facing transactions.
+- Release tracking: `release = "${BuildConfig.APPLICATION_ID}@${BuildConfig.VERSION_NAME}+${BuildConfig.VERSION_CODE}"`.
+
+**Test crash affordance (debug only)**
+- Hidden 5-tap gesture on Profile screen's version label → invokes `throw RuntimeException("Test crash")`. Disabled in release via `BuildConfig.DEBUG`.
+
+### 9.3 — Render performance: JankStats
+
+**Dependency:** `androidx.metrics:metrics-performance:1.0.0-beta01`.
+
+**`performance/JankReporter.kt`**
+```kotlin
+class JankReporter @Inject constructor(
+    private val tracker: AnalyticsTracker
+) : JankStats.OnFrameListener {
+    override fun onFrame(frameData: FrameData) {
+        if (!frameData.isJank) return
+        val states = frameData.states.associate { it.key to it.value }
+        tracker.trackEvent("frame_jank", states + mapOf(
+            "duration_ms" to frameData.frameDurationUiNanos / 1_000_000,
+            "is_jank" to true
+        ))
+    }
+}
+```
+
+**Activity-level wiring** — in `MainActivity.onCreate` after `setContent`:
+```kotlin
+val jankStats = JankStats.createAndTrack(window, jankReporter)
+lifecycle.addObserver(LifecycleEventObserver { _, e ->
+    jankStats.isTrackingEnabled = (e == ON_RESUME)
+})
+```
+
+**Composable state attribution** — `view/components/JankStateEffect.kt`:
+```kotlin
+@Composable
+fun JankStateEffect(vararg states: Pair<String, String>) {
+    val view = LocalView.current
+    DisposableEffect(states.toList()) {
+        val holder = PerformanceMetricsState.getHolderForHierarchy(view)
+        states.forEach { (k, v) -> holder.state?.putState(k, v) }
+        onDispose { states.forEach { (k, _) -> holder.state?.removeState(k) } }
+    }
+}
+```
+
+**Usage** — drop into every grid/list-bearing screen:
+```kotlin
+// HomeScreen
+JankStateEffect(
+    "screen"    to "home",
+    "view_mode" to state.viewMode.name,
+    "scrolling" to listState.isScrollInProgress.toString()
+)
+```
+
+Same for `FavoritesScreen` (with `"favorites"`) and `DetailsScreen` (with `"details"`).
+
+### 9.4 — Per-screen render timing
+
+**`performance/ScreenRenderTracker.kt`**
+- Modifier extension `Modifier.trackScreenRender(screen: String)`:
+  - Captures `System.nanoTime()` on first `onPlaced`.
+  - Hooks `Choreographer.getInstance().postFrameCallback` on the next frame.
+  - On frame callback fired, computes `durationMs = (frameTime - startTime) / 1_000_000` and emits `screen_rendered` event with `{ screen, duration_ms, is_cold_start }`.
+  - `is_cold_start` true only for the very first screen of the process (set a `@Singleton` flag on first call).
+
+**Cold-start delta**
+- `Process.getStartElapsedRealtime()` (API 26+) → captured in `MovieFluxApp.onCreate()` as `appStartElapsed`.
+- First `trackScreen("home")` after login computes `now - appStartElapsed` → emits `cold_start_to_home` event with `duration_ms`.
+- Cross-validated against Firebase Performance's auto `_app_start` trace.
+
+**Wire-up locations**
+- `LoginScreen`: `Modifier.trackScreenRender("login")` on root.
+- `HomeScreen`, `FavoritesScreen`, `ProfileScreen`, `DetailsScreen`: same.
+
+### 9.5 — Firebase Performance Monitoring
+
+**Setup**
+- Plugin `com.google.firebase.firebase-perf`.
+- Already provisioned by `google-services.json` from 9.2.
+
+**Auto-traces (no code)**
+- `_app_start` — process start → first activity drawn.
+- `_app_in_foreground_time` / `_app_in_background_time`.
+- HTTP request traces for OkHttp (automatic via plugin).
+- Screen rendering metrics (slow frames %, frozen frames %).
+
+**Custom traces** (`com.google.firebase.perf.metrics.Trace`)
+- `HomeViewModel.loadMovies()`:
+  ```kotlin
+  val trace = FirebasePerformance.getInstance().newTrace("home_load").apply { start() }
+  trace.putAttribute("page", currentPage.toString())
+  runCatching { useCase(currentPage) }
+    .onSuccess { trace.putMetric("count", it.size.toLong()) }
+    .also { trace.stop() }
+  ```
+- Same pattern for `DetailsViewModel.loadDetail`, `FavoritesViewModel` init, `LoginViewModel.login`.
+
+**Custom HTTP attributes** — extend `ApiKeyInterceptor` to call `HttpMetric.putAttribute("endpoint", path)` before `start()`.
+
+### 9.6 — Network + image + DB instrumentation
+
+**Network (extend Phase 1's `ApiKeyInterceptor`)**
+- Emit `tracker.trackEvent("network_request", { endpoint, status, duration_ms, response_bytes })`.
+- On non-2xx: emit `trackError("[NETWORK]", HttpException(response))`.
+- Sentry auto-instrumentation already wraps this in spans.
+
+**Coil image load — `ImageLoader.eventListener`**
+```kotlin
+ImageLoader.Builder(context)
+  .eventListener(object : EventListener {
+      override fun onSuccess(request: ImageRequest, result: SuccessResult) {
+          tracker.trackEvent("image_load", mapOf(
+              "duration_ms" to result.metadata.diskCacheKey?.let { 0L } ?: -1L,  // approx
+              "data_source" to result.dataSource.name,   // MEMORY_CACHE / DISK / NETWORK
+              "from_cache"  to (result.dataSource != DataSource.NETWORK)
+          ))
+      }
+      override fun onError(request: ImageRequest, result: ErrorResult) {
+          tracker.trackError("[IMAGE]", result.throwable)
+      }
+  })
+  .build()
+```
+- Provide this `ImageLoader` via Hilt (`@Provides @Singleton`) and pass to `AsyncImage(imageLoader = ...)` everywhere.
+
+**Room — DAO method tracing**
+- Wrap each `MovieDao` method call from the repository in `androidx.tracing.Trace.beginSection("dao_${methodName}")` / `endSection()`. Visible in Android Studio Profiler systrace.
+- For slow queries: `RoomDatabase.QueryCallback` that emits `db_query` event when `executionTimeMs > 100`.
+
+### 9.7 — User flow funnels
+
+**`analytics/FunnelTracker.kt`**
+- In-memory `Map<String, Long>` keyed by flow name → start timestamp.
+- API: `start(flow: String)`, `step(flow: String, step: String)`, `complete(flow: String)`, `abandon(flow: String, reason: String)`.
+- Every step emits `funnel_step` event with `{ flow, step, ms_since_start, ms_since_previous_step }`.
+- `complete` emits `funnel_complete` with total duration; `abandon` emits `funnel_abandoned`.
+
+**Auth funnel wiring**
+- `LoginScreen` Sign-in button click → `funnel.start("auth"); funnel.step("auth", "login_clicked")`.
+- `LoginViewModel` emits `Success` → `funnel.step("auth", "login_success")`.
+- First `screen_rendered` event for `home` → `funnel.complete("auth")` (auth funnel total ms = login-to-home).
+- `LoginViewModel` emits `Error` → `funnel.abandon("auth", reason = "invalid_credentials")`.
+
+**Biometric outcome** (not strictly a funnel, but related)
+- `BiometricHelper.authenticate` callbacks → `trackEvent("biometric_result", { outcome: success|cancel|error|no_hardware, duration_ms })`.
+
+### 9.8 — Compose render diagnostics
+
+**Compose Compiler Stability Reports**
+- Add to `:app/build.gradle.kts`:
+  ```kotlin
+  kotlinOptions {
+      freeCompilerArgs += listOf(
+          "-P", "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=${rootProject.layout.buildDirectory.get().asFile.absolutePath}/compose_reports",
+          "-P", "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=${rootProject.layout.buildDirectory.get().asFile.absolutePath}/compose_metrics"
+      )
+  }
+  ```
+- After `./gradlew assembleRelease`, review `build/compose_reports/app_release-classes.txt`.
+- Pre-release checklist item: any composable with `runtime-determined stability` params should be promoted to `@Immutable`/`@Stable` data class or `ImmutableList` (kotlinx-immutable-collections) before shipping.
+
+**Compose runtime trace markers** (for Android Studio Profiler)
+- Wrap hot composables: `Trace.beginSection("HomeGrid")` ... `Trace.endSection()` inside `HomeScreen`'s grid block, `FavoritesGrid`, `MovieCard` (no — too granular; keep at screen level).
+- Inspect via Profiler → CPU → System Trace.
+
+**Recomposition counts (debug only)**
+- Add `recompose-highlighter` dev modifier on suspect composables in debug builds:
+  ```kotlin
+  Modifier.then(if (BuildConfig.DEBUG) Modifier.recomposeHighlighter() else Modifier)
+  ```
+
+### 9.9 — Macrobenchmark + Baseline Profile (CI gate)
+
+**New module:** `benchmark/`
+- `androidx.benchmark:benchmark-macro-junit4:1.2.4`.
+- Manifest declares benchmark `<profileable>` access.
+
+**Tests**
+- `StartupBenchmark` — `@RunWith(AndroidJUnit4::class)`; measures `StartupTimingMetric` for `COLD`, `WARM`, `HOT`. Target: cold start p95 < 1.5s on a Pixel 6.
+- `HomeScrollBenchmark` — `FrameTimingMetric` while scrolling Home grid 10 pages. Target: p99 frame < 50ms.
+- `HomeListScrollBenchmark` — same for LIST viewMode (compare against GRID).
+- `FavoritesScrollBenchmark` — same for Favorites (after seeding 100 favorites via a test-only DAO entry point).
+- `LoginToHomeBenchmark` — `TraceSectionMetric("home_load")` → measures network-bound first paint.
+
+**Baseline Profile**
+- `BaselineProfileGenerator` test runs a critical user journey: cold start → scroll Home 5 pages → tap movie → view Details → back. Generates `baseline-prof.txt` written into `:app/src/main/`.
+- Reduces cold start by 20–40% typically.
+
+**CI**
+- `./gradlew :benchmark:connectedBenchmarkAndroidTest` runs on a managed device (Google's `Pixel 6 API 33` via `com.android.test` plugin).
+- Output JSON parsed by a CI step (`scripts/check_benchmarks.sh`) — fails the PR if regressions exceed thresholds (configured in `benchmark/thresholds.yaml`).
+
+### 9.10 — Sampling + privacy policy
+
+**`analytics/SamplingPolicy.kt`**
+```kotlin
+data class SamplingPolicy(
+    val errorRate: Float = 1.0f,            // never drop errors
+    val funnelRate: Float = 1.0f,           // never drop funnel steps (low volume)
+    val screenRenderRate: Float = if (DEBUG) 1.0f else 0.15f,
+    val jankRate: Float = if (DEBUG) 1.0f else 0.15f,
+    val networkRate: Float = if (DEBUG) 1.0f else 0.20f,
+    val imageRate: Float = if (DEBUG) 1.0f else 0.05f,  // highest volume
+    val defaultRate: Float = if (DEBUG) 1.0f else 0.20f
+)
+```
+
+**`SampledAnalyticsTracker`** routes events by name → rate → `Random.nextFloat() < rate ? forward : drop`. Errors always forwarded. Sentry has its own `tracesSampleRate` for transactions — kept aligned.
+
+**Privacy**
+- User ID hashed (SHA-256) before reaching any vendor SDK.
+- No PII in event params — movie titles OK; usernames/emails forbidden by lint rule (custom `AnalyticsParamLint` check, or just a code review checklist).
+- Crashlytics + Sentry both configured `setCollectionEnabled(BuildConfig.DEBUG.not())` — debug builds don't send.
+- README documents what telemetry is collected and how to opt out (future: Profile toggle).
+
+### 9.11 — Analytics call-site map
+
+| Where | Event / call | Why |
+|---|---|---|
+| Every ViewModel `init` | `trackScreen(name)` | Screen funnel + Crashlytics + Sentry custom key |
+| `LoginViewModel.login` start | `funnel.start("auth"); funnel.step("auth", "login_clicked")` | Auth funnel start |
+| `LoginViewModel` Success | `funnel.step("auth", "login_success")` + Firebase trace `login` stop | Step 2 of funnel |
+| First `screen_rendered("home")` after Success | `funnel.complete("auth")` | Auth flow timing |
+| `LoginViewModel` Error | `funnel.abandon("auth", reason)` + `trackError` | Error visibility |
+| `BiometricHelper` callback | `trackEvent("biometric_result", { outcome, duration_ms })` | Device-issue surfacing |
+| `Profile.confirmLogout` | `trackEvent("logout")` | User-flow metric |
+| `Profile.setBiometricEnabled` | `trackEvent("biometric_toggled", { enabled })` | Settings telemetry |
+| `Home/Favorites.setViewMode` | `trackEvent("view_mode_changed", { screen, mode })` | Feature usage |
+| `Home/Favorites/Details.toggleFavorite` | `trackEvent("toggle_favorite", { movie_id, is_favorite })` | Engagement |
+| `ApiKeyInterceptor` | `trackEvent("network_request", { endpoint, status, duration_ms })` | Per-call telemetry |
+| Coil EventListener | `trackEvent("image_load", { data_source, duration_ms })` | Image perf |
+| JankStats `onFrame` | `trackEvent("frame_jank", { duration_ms, screen, view_mode, scrolling })` | Render perf |
+| `Modifier.trackScreenRender` | `trackEvent("screen_rendered", { screen, duration_ms, is_cold_start })` | Render perf |
+| Any catch block | `trackError(tag, throwable, isFatal = false)` | Non-fatal capture |
+| `UncaughtExceptionHandler` (default chain) | Crashlytics + Sentry handle automatically | Fatal capture |
+
+### 9.12 — Unit Tests
 
 **`HomeViewModelTest`**
 - `loadMovies()` emits `Success` with movie list.
@@ -714,15 +991,36 @@ Inject into all ViewModels. Call:
 - Selected state reflects current route.
 - Bottom bar is hidden on Details route, visible on Home/Favorites/Profile.
 
+**`AnalyticsTrackerTest`** *(new — guards the observability core)*
+- `CompositeAnalyticsTracker` forwards a call to every sink even if one throws.
+- `SampledAnalyticsTracker` always forwards `trackError` regardless of `errorRate < 1.0`.
+- `SampledAnalyticsTracker` drops a `frame_jank` event when `Random.nextFloat() >= jankRate`.
+- `FunnelTracker` emits `funnel_complete` with the correct total duration; double-completing a flow is a no-op.
+
+**`JankReporterTest`** *(new — unit)*
+- `onFrame(isJank = false)` emits nothing.
+- `onFrame(isJank = true, states = [screen=home, view_mode=GRID])` emits `frame_jank` with all state attributes merged.
+
 Use `kotlinx-coroutines-test` (`runTest`, `TestDispatcher`) + MockK + Turbine for unit tests; Compose UI testing rule for the BottomNavBar test.
 
-### 9.3 — README.md
+**Macrobenchmark suite (from 9.9, run in CI, not part of `:app`'s `test` source set):**
+- `StartupBenchmark` — cold/warm/hot timing.
+- `HomeScrollBenchmark` (GRID + LIST).
+- `FavoritesScrollBenchmark`.
+- `LoginToHomeBenchmark`.
+- All ship JSON metrics; thresholds asserted in `scripts/check_benchmarks.sh`.
+
+### 9.13 — README.md
 Sections:
-1. **API Key setup** — add `TMDB_API_KEY=your_key` to `local.properties`.
+1. **API Key setup** — add `TMDB_API_KEY=your_key` and `SENTRY_DSN=your_dsn` to `local.properties`. `google-services.json` must be placed in `app/` (CI injects via secret, dev gets it from the shared 1Password vault).
 2. **Biometric testing** — enroll a fingerprint in the emulator (`Settings > Security > Fingerprint`), log in, open Profile, toggle "Biometric login" on, restart app.
 3. **Navigation structure** — diagram of the nested NavHost (AuthGraph + MainGraph with tabs).
 4. **Architecture decisions** — MVVM + Clean Architecture, Hilt, Room + Flow for cross-screen sync.
-5. **AI usage** — document how Claude Code was used for scaffolding and plan generation.
+5. **Observability stack** — what each tool does (table from Phase 9 intro), how events flow through `CompositeAnalyticsTracker`, where dashboards live (Firebase + Sentry URLs). Includes the analytics call-site map (9.11).
+6. **Running benchmarks** — `./gradlew :benchmark:connectedBenchmarkAndroidTest`; how to read the JSON; current thresholds; how the Baseline Profile is regenerated.
+7. **Reading Compose Compiler reports** — where `build/compose_reports/` lives, how to spot unstable params, how to fix with `@Immutable` / `ImmutableList`.
+8. **Sampling + privacy** — what telemetry is collected, sampling rates per event type, hashing of user IDs, how debug builds are excluded from production sinks.
+9. **AI usage** — document how Claude Code was used for scaffolding and plan generation.
 
 ---
 
@@ -755,4 +1053,9 @@ Phases 4 and 5 can run in parallel after Phase 3 (different files, no shared cod
 | Biometric opt-in | First-login `AlertDialog` after Success | Toggle row on Profile screen (Day 2 dialog removed) |
 | Phase count | 7 days | 9 phases — new Phase 3 (nav restructure) + new Phase 4 (profile) inserted between auth and feature screens |
 | `Screen` sealed class | 4 routes (Login, Home, Favorites, Details) | 6 routes + 2 graph routes: AuthGraph, MainGraph, Login, Home, Favorites, Profile, Details |
-| Tests | Home / Repository / Login VM tests | + ProfileViewModelTest + BottomNavBar instrumented test |
+| Tests | Home / Repository / Login VM tests | + Profile / Favorites / Details VM tests + BottomNavBar instrumented + AnalyticsTracker + JankReporter + 5 Macrobenchmarks |
+| Movie grid item | Original spec: heart overlay, star rating | Matches `docs/design/Filme Item.png`: poster + title (1-line) + `X/5` rating + heart `IconButton` at bottom-right of poster (semi-transparent black circle) |
+| Home / Favorites list mode | Grid only | Toggle in TopAppBar switches between Grid (`MovieCard`) and List (`MovieListItem`); per-screen independent state |
+| Login screen | Stub | Full design built from `docs/design/Login.png` using existing color tokens (`BackgroundDark`, `TealGreenLight`, `TealGreen`); SVG logo + "MovieFlux" wordmark; pill button |
+| Observability | Timber + AnalyticsTracker interface | Full stack: Timber + JankStats + Firebase Performance + Crashlytics + Sentry + Macrobenchmark/Baseline Profile + Compose Compiler reports; sampled at 15% in release; funnel tracker; per-screen render timing; cold-start delta |
+| Crash reporting | Not addressed | Crashlytics (fatal + ANR) + Sentry (non-fatal + perf transactions); both wired through `CompositeAnalyticsTracker` |

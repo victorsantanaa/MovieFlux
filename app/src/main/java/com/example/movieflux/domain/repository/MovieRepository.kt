@@ -11,6 +11,8 @@ interface MovieRepository {
 
     fun getFavorites(): Flow<List<MovieModel>>
 
+    fun getMovieDetail(id: Int): Flow<MovieModel>
+
     suspend fun toggleFavorite(movie: MovieModel)
 
     suspend fun getGenres(): Map<Int, String>

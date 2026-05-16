@@ -3,6 +3,7 @@ package com.example.movieflux.data.repository
 import com.example.movieflux.data.local.MovieDao
 import com.example.movieflux.data.mapper.toDomain
 import com.example.movieflux.data.mapper.toEntity
+import com.example.movieflux.data.remote.MovieDetailDto
 import com.example.movieflux.data.remote.RemoteDataSource
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
@@ -53,4 +54,10 @@ class MovieRepositoryImpl(
             val result = api.search(query)
             emit(result.results.map { it.toDomain(false) })
         }
+
+    override fun getMovieDetail(id: Int): Flow<MovieModel> = flow {
+        val dto = api.getMovieDetail(id)
+        val favorites = dao.getFavorites().first()
+        emit(dto.toDomain(isFavorite = favorites.any { it.id == id }))
+    }
 }

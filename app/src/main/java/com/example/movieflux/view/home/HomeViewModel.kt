@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 // TODO Phase 1/2: replace with @HiltViewModel + @Inject constructor(useCase, repository)
 class HomeViewModel : ViewModel() {
 
-    private val repository: MovieRepository = FakeMovieRepository()
+    private val repository: MovieRepository = FakeMovieRepository
     private val useCase = GetPopularMoviesUseCase(repository)
 
     private var currentPage = 1
