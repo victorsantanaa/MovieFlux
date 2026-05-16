@@ -4,66 +4,37 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.movieflux.navigation.Screen
-import com.example.movieflux.view.details.DetailsScreen
-import com.example.movieflux.view.favorites.FavoritesScreen
-import com.example.movieflux.view.home.HomeScreen
+import androidx.navigation.navigation
 import com.example.movieflux.view.login.LoginScreen
+import com.example.movieflux.view.main.MainScaffold
 
 @Composable
-fun AppNavHost(
-    navController: NavHostController
-) {
-    val startDestination = Screen.Login.route
-
+fun AppNavHost(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = Screen.AuthGraph.route
     ) {
-
-        composable(Screen.Login.route) {
-            LoginScreen(
-                onLoginClick = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+        navigation(
+            route = Screen.AuthGraph.route,
+            startDestination = Screen.Login.route
+        ) {
+            composable(Screen.Login.route) {
+                LoginScreen(
+                    onLoginSuccess = {
+                        navController.navigate(Screen.MainGraph.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 
-        composable(Screen.Home.route) {
-            HomeScreen(
-                onMovieClick = { id ->
-                    navController.navigate(Screen.Details.createRoute(id))
-                },
-                onFavoritesClick = {
-                    navController.navigate(Screen.Favorites.route)
-                },
-                onLogoutClick = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) // limpa stack
+        composable(Screen.MainGraph.route) {
+            MainScaffold(
+                onLogout = {
+                    navController.navigate(Screen.AuthGraph.route) {
+                        popUpTo(0) { inclusive = true }
                     }
-                }
-            )
-        }
-
-        composable(Screen.Details.route) { backStackEntry ->
-            val movieId = backStackEntry.arguments
-                ?.getString("movieId")
-                ?.toIntOrNull()
-
-            DetailsScreen(
-                movieId = movieId,
-                onBackClick = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        composable(Screen.Favorites.route) {
-            FavoritesScreen(
-                onBackClick = {
-                    navController.popBackStack()
                 }
             )
         }

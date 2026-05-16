@@ -9,7 +9,7 @@ import com.example.movieflux.view.components.PrimaryButton
 
 @Composable
 fun LoginScreen(
-    onLoginClick: () -> Unit
+    onLoginSuccess: () -> Unit
 ) {
     Column {
         Text(
@@ -18,7 +18,7 @@ fun LoginScreen(
         )
         PrimaryButton(
             text = "Go to Home",
-            onClick = onLoginClick,
+            onClick = onLoginSuccess,
             size = ButtonSize.LARGE
         )
     }

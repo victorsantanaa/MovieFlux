@@ -9,17 +9,12 @@ import com.example.movieflux.view.components.PrimaryButton
 
 @Composable
 fun FavoritesScreen(
-    onBackClick: () -> Unit
+    onMovieClick: (Int) -> Unit
 ) {
     Column {
         Text(
             text = "Favorites Screen",
             style = MaterialTheme.typography.titleLarge
-        )
-        PrimaryButton(
-            text = "Back to Home",
-            onClick = onBackClick,
-            size = ButtonSize.MEDIUM
         )
     }
 }
