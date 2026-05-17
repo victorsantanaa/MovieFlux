@@ -5,6 +5,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -43,7 +44,7 @@ class BiometricHelper @Inject constructor() {
                 onError(errString.toString())
             }
             override fun onAuthenticationFailed() {
-                onError("Authentication failed")
+                Timber.d("Biometric attempt failed (transient)")
             }
         }
         val prompt = BiometricPrompt(activity, executor, callback)
