@@ -1,6 +1,5 @@
 package com.example.movieflux.view.profile
 
-import android.content.Context
 import app.cash.turbine.test
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.biometric.BiometricAvailability
@@ -31,12 +30,11 @@ class ProfileViewModelTest {
     private val authPreferences: AuthPreferences = mockk(relaxed = true)
     private val biometricHelper: BiometricHelper = mockk()
     private val tracker: AnalyticsTracker = mockk(relaxed = true)
-    private val context: Context = mockk(relaxed = true)
 
     private fun buildViewModel(): ProfileViewModel {
-        every { biometricHelper.canAuthenticate(any()) } returns BiometricAvailability.Available
+        every { biometricHelper.canAuthenticate() } returns BiometricAvailability.Available
         every { authPreferences.biometricEnabled } returns false
-        return ProfileViewModel(authPreferences, biometricHelper, tracker, context)
+        return ProfileViewModel(authPreferences, biometricHelper, tracker)
     }
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
@@ -60,7 +58,7 @@ class ProfileViewModelTest {
     @Test
     fun `setBiometricEnabled true when NoneEnrolled emits BiometricUnavailable and does not write`() = runTest {
         val vm = buildViewModel()
-        every { biometricHelper.canAuthenticate(any()) } returns BiometricAvailability.NoneEnrolled
+        every { biometricHelper.canAuthenticate() } returns BiometricAvailability.NoneEnrolled
 
         vm.events.test {
             vm.setBiometricEnabled(true)

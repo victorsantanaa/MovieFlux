@@ -30,6 +30,10 @@ class AuthPreferences @Inject constructor(@ApplicationContext context: Context) 
         get() = prefs.getBoolean(KEY_BIOMETRIC_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, value).apply()
 
+    var biometricPrompted: Boolean
+        get() = prefs.getBoolean(KEY_BIOMETRIC_PROMPTED, false)
+        set(value) = prefs.edit().putBoolean(KEY_BIOMETRIC_PROMPTED, value).apply()
+
     fun clear() {
         prefs.edit().clear().apply()
     }
@@ -37,5 +41,6 @@ class AuthPreferences @Inject constructor(@ApplicationContext context: Context) 
     companion object {
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+        private const val KEY_BIOMETRIC_PROMPTED = "biometric_prompted"
     }
 }

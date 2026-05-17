@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.analytics.FunnelTracker
+import com.example.movieflux.data.biometric.BiometricAvailability
+import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authPreferences: AuthPreferences,
+    private val biometricHelper: BiometricHelper,
     private val tracker: AnalyticsTracker,
     private val funnel: FunnelTracker
 ) : ViewModel() {
@@ -34,12 +37,20 @@ class LoginViewModel @Inject constructor(
             if (username == "admin" && password == "1234") {
                 authPreferences.isLoggedIn = true
                 funnel.step("auth", "login_success")
-                _uiState.value = LoginUiState.Success
+                val shouldPrompt = !authPreferences.biometricPrompted &&
+                    biometricHelper.canAuthenticate() == BiometricAvailability.Available
+                _uiState.value = LoginUiState.Success(shouldPromptBiometric = shouldPrompt)
             } else {
                 funnel.abandon("auth", "invalid_credentials")
                 tracker.trackError("[AUTH]", Exception("Invalid credentials"))
                 _uiState.value = LoginUiState.Error("Invalid credentials")
             }
         }
+    }
+
+    fun confirmBiometricOptIn(enable: Boolean) {
+        authPreferences.biometricEnabled = enable
+        authPreferences.biometricPrompted = true
+        _uiState.value = LoginUiState.Success(shouldPromptBiometric = false)
     }
 }

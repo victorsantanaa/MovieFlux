@@ -3,6 +3,8 @@ package com.example.movieflux
 import app.cash.turbine.test
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.analytics.FunnelTracker
+import com.example.movieflux.data.biometric.BiometricAvailability
+import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
 import com.example.movieflux.view.login.LoginUiState
 import com.example.movieflux.view.login.LoginViewModel
@@ -19,6 +21,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -28,6 +31,7 @@ class LoginViewModelTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
     private val authPreferences: AuthPreferences = mockk(relaxed = true)
+    private val biometricHelper: BiometricHelper = mockk()
     private val tracker: AnalyticsTracker = mockk(relaxed = true)
     private val funnel: FunnelTracker = mockk(relaxed = true)
 
@@ -36,7 +40,9 @@ class LoginViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(dispatcher)
-        viewModel = LoginViewModel(authPreferences, tracker, funnel)
+        every { biometricHelper.canAuthenticate() } returns BiometricAvailability.Unavailable
+        every { authPreferences.biometricPrompted } returns false
+        viewModel = LoginViewModel(authPreferences, biometricHelper, tracker, funnel)
     }
 
     @After
@@ -50,7 +56,8 @@ class LoginViewModelTest {
             assertEquals(LoginUiState.Idle, awaitItem())
             viewModel.login("admin", "1234")
             assertEquals(LoginUiState.Loading, awaitItem())
-            assertEquals(LoginUiState.Success, awaitItem())
+            val success = awaitItem()
+            assertTrue(success is LoginUiState.Success)
         }
         verify { authPreferences.isLoggedIn = true }
     }
@@ -84,5 +91,72 @@ class LoginViewModelTest {
     fun `login failure abandons auth funnel`() = runTest {
         viewModel.login("admin", "wrong")
         verify { funnel.abandon("auth", "invalid_credentials") }
+    }
+
+    @Test
+    fun `login success with biometric available and not prompted emits Success with shouldPromptBiometric true`() = runTest {
+        every { biometricHelper.canAuthenticate() } returns BiometricAvailability.Available
+        every { authPreferences.biometricPrompted } returns false
+
+        viewModel.uiState.test {
+            awaitItem() // Idle
+            viewModel.login("admin", "1234")
+            awaitItem() // Loading
+            val success = awaitItem() as LoginUiState.Success
+            assertTrue(success.shouldPromptBiometric)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `login success when biometricPrompted already true emits Success with shouldPromptBiometric false`() = runTest {
+        every { biometricHelper.canAuthenticate() } returns BiometricAvailability.Available
+        every { authPreferences.biometricPrompted } returns true
+
+        viewModel.uiState.test {
+            awaitItem() // Idle
+            viewModel.login("admin", "1234")
+            awaitItem() // Loading
+            val success = awaitItem() as LoginUiState.Success
+            assertFalse(success.shouldPromptBiometric)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `login success when biometric unavailable emits Success with shouldPromptBiometric false`() = runTest {
+        every { biometricHelper.canAuthenticate() } returns BiometricAvailability.Unavailable
+        every { authPreferences.biometricPrompted } returns false
+
+        viewModel.uiState.test {
+            awaitItem() // Idle
+            viewModel.login("admin", "1234")
+            awaitItem() // Loading
+            val success = awaitItem() as LoginUiState.Success
+            assertFalse(success.shouldPromptBiometric)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `confirmBiometricOptIn true sets both prefs to true`() {
+        every { authPreferences.biometricEnabled = true } just runs
+        every { authPreferences.biometricPrompted = true } just runs
+
+        viewModel.confirmBiometricOptIn(true)
+
+        verify { authPreferences.biometricEnabled = true }
+        verify { authPreferences.biometricPrompted = true }
+    }
+
+    @Test
+    fun `confirmBiometricOptIn false sets only prompted true`() {
+        every { authPreferences.biometricEnabled = false } just runs
+        every { authPreferences.biometricPrompted = true } just runs
+
+        viewModel.confirmBiometricOptIn(false)
+
+        verify { authPreferences.biometricEnabled = false }
+        verify { authPreferences.biometricPrompted = true }
     }
 }

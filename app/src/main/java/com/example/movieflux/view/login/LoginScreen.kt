@@ -59,12 +59,27 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    var showBiometricDialog by remember { mutableStateOf(false) }
+
     LogRecompositions("LoginScreen")
 
     LaunchedEffect(uiState) {
-        if (uiState is LoginUiState.Success) {
-            onLoginSuccess()
+        val state = uiState
+        if (state is LoginUiState.Success) {
+            if (state.shouldPromptBiometric && !showBiometricDialog) {
+                showBiometricDialog = true
+            } else if (!state.shouldPromptBiometric) {
+                showBiometricDialog = false
+                onLoginSuccess()
+            }
         }
+    }
+
+    if (showBiometricDialog) {
+        BiometricOptInDialog(
+            onEnable = { vm.confirmBiometricOptIn(true) },
+            onSkip = { vm.confirmBiometricOptIn(false) }
+        )
     }
 
     Box(

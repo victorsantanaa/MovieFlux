@@ -1,6 +1,5 @@
 package com.example.movieflux.view.profile
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.BuildConfig
@@ -9,7 +8,6 @@ import com.example.movieflux.data.biometric.BiometricAvailability
 import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,8 +26,7 @@ sealed class ProfileUiEvent {
 class ProfileViewModel @Inject constructor(
     private val authPreferences: AuthPreferences,
     private val biometricHelper: BiometricHelper,
-    private val tracker: AnalyticsTracker,
-    @ApplicationContext private val context: Context
+    private val tracker: AnalyticsTracker
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -43,7 +40,7 @@ class ProfileViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 biometricEnabled = authPreferences.biometricEnabled,
-                biometricAvailable = biometricHelper.canAuthenticate(context) == BiometricAvailability.Available,
+                biometricAvailable = biometricHelper.canAuthenticate() == BiometricAvailability.Available,
                 appVersion = BuildConfig.VERSION_NAME
             )
         }
@@ -51,7 +48,7 @@ class ProfileViewModel @Inject constructor(
 
     fun setBiometricEnabled(enabled: Boolean) {
         if (enabled) {
-            when (biometricHelper.canAuthenticate(context)) {
+            when (biometricHelper.canAuthenticate()) {
                 BiometricAvailability.Available -> {
                     authPreferences.biometricEnabled = true
                     _uiState.update { it.copy(biometricEnabled = true) }
