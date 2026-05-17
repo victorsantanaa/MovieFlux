@@ -61,7 +61,7 @@ fun MainScaffold(onLogout: () -> Unit) {
             composable(
                 route = Screen.Details.route,
                 arguments = listOf(
-                    navArgument(Screen.Details.ARG_MOVIE_ID) { type = NavType.StringType }
+                    navArgument(Screen.Details.ARG_MOVIE_ID) { type = NavType.IntType }
                 )
             ) {
                 DetailsScreen(

@@ -5,12 +5,15 @@ import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.domain.repository.MovieRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,10 +24,15 @@ class DetailsViewModel @Inject constructor(
     private val tracker: AnalyticsTracker
 ) : ViewModel() {
 
-    private val movieId: Int = savedStateHandle.get<String>("movieId")?.toInt() ?: 0
+    private val movieId: Int = checkNotNull(savedStateHandle.get<Int>("movieId")) {
+        "Details route requires a valid integer movieId argument"
+    }
 
     private val _uiState = MutableStateFlow<DetailsUiState>(DetailsUiState.Loading)
     val uiState: StateFlow<DetailsUiState> = _uiState.asStateFlow()
+
+    private val _events = Channel<DetailsEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
 
     init {
         tracker.trackScreen("details")
@@ -36,10 +44,7 @@ class DetailsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repository.getMovieDetail(movieId).collect { movie ->
-                    val genreNames = repository.getGenres()
-                        .filterKeys { it in movie.genreIds }
-                        .values.toList()
-                    _uiState.value = DetailsUiState.Success(movie, genreNames)
+                    _uiState.value = DetailsUiState.Success(movie, movie.genreNames)
                 }
             } catch (e: Exception) {
                 _uiState.value = DetailsUiState.Error(e.message ?: "Failed to load movie details")
@@ -49,10 +54,16 @@ class DetailsViewModel @Inject constructor(
 
     fun toggleFavorite() {
         val current = _uiState.value as? DetailsUiState.Success ?: return
-        val movie = current.movie
-        tracker.trackEvent("toggle_favorite", mapOf("movie_id" to movie.id, "is_favorite" to !movie.isFavorite))
-        _uiState.value = current.copy(movie = movie.copy(isFavorite = !movie.isFavorite))
-        viewModelScope.launch { repository.toggleFavorite(movie) }
+        val originalMovie = current.movie
+        tracker.trackEvent("toggle_favorite", mapOf("movie_id" to originalMovie.id, "is_favorite" to !originalMovie.isFavorite))
+        _uiState.value = current.copy(movie = originalMovie.copy(isFavorite = !originalMovie.isFavorite))
+        viewModelScope.launch {
+            runCatching { repository.toggleFavorite(originalMovie) }
+                .onFailure {
+                    _uiState.value = current
+                    _events.send(DetailsEvent.ShowError(R.string.error_toggle_favorite))
+                }
+        }
     }
 
     fun share(context: Context) {

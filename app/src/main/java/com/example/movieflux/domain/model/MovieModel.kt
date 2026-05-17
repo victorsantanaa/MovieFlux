@@ -7,5 +7,6 @@ data class MovieModel(
     val posterUrl: String,
     val rating: Double,
     val genreIds: List<Int>,
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+    val genreNames: List<String> = emptyList()
 )

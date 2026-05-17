@@ -13,6 +13,7 @@ class FakeMovieRepository : MovieRepository {
     var searchResults: List<MovieModel> = emptyList()
     var movieDetail: MovieModel? = null
     var shouldThrow: Boolean = false
+    var shouldThrowOnSearch: Boolean = false
 
     override fun getPopularMovies(page: Int): Flow<List<MovieModel>> =
         kotlinx.coroutines.flow.flow {
@@ -21,7 +22,10 @@ class FakeMovieRepository : MovieRepository {
         }
 
     override fun searchMovies(query: String): Flow<List<MovieModel>> =
-        kotlinx.coroutines.flow.flow { emit(searchResults) }
+        kotlinx.coroutines.flow.flow {
+            if (shouldThrowOnSearch) throw RuntimeException("Search error")
+            emit(searchResults)
+        }
 
     override fun getFavorites(): Flow<List<MovieModel>> = favorites
 
@@ -41,12 +45,17 @@ class FakeMovieRepository : MovieRepository {
     override suspend fun getGenres(): Map<Int, String> = emptyMap()
 }
 
-fun fakeMovie(id: Int = 1, isFavorite: Boolean = false) = MovieModel(
+fun fakeMovie(
+    id: Int = 1,
+    isFavorite: Boolean = false,
+    genreNames: List<String> = emptyList()
+) = MovieModel(
     id = id,
     title = "Movie $id",
     overview = "Overview $id",
     posterUrl = "https://image.tmdb.org/t/p/w500/poster$id.jpg",
     rating = 7.5,
     genreIds = listOf(28),
-    isFavorite = isFavorite
+    isFavorite = isFavorite,
+    genreNames = genreNames
 )

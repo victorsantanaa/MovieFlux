@@ -3,4 +3,8 @@
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Favorites</string>
     <string name="tab_profile">Profile</string>
+    <string name="error_toggle_favorite">Couldn\'t update favorite. Please try again.</string>
+    <string name="empty_no_popular">No popular movies right now. Pull to refresh.</string>
+    <string name="empty_no_results_for">No results for &quot;%1$s&quot;.</string>
+    <string name="pagination_error_retry">Couldn\'t load more. Tap to retry.</string>
 </resources>

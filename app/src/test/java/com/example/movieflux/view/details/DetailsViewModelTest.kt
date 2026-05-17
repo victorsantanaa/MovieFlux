@@ -30,7 +30,7 @@ class DetailsViewModelTest {
     private val repo: MovieRepository = mockk(relaxed = true)
     private val tracker: AnalyticsTracker = mockk(relaxed = true)
 
-    private fun buildViewModel(movieId: String = "42"): DetailsViewModel =
+    private fun buildViewModel(movieId: Int = 42): DetailsViewModel =
         DetailsViewModel(
             savedStateHandle = SavedStateHandle(mapOf("movieId" to movieId)),
             repository = repo,
@@ -43,19 +43,17 @@ class DetailsViewModelTest {
     // ── loadDetail → Success ──────────────────────────────────────────────────
 
     @Test
-    fun `loadDetail emits Success with movie and genre names`() = runTest {
-        val movie = fakeMovie(42)
+    fun `loadDetail emits Success with movie and genre names from MovieModel`() = runTest {
+        val movie = fakeMovie(42, genreNames = listOf("Action"))
         coEvery { repo.getMovieDetail(42) } returns flowOf(movie)
-        coEvery { repo.getGenres() } returns mapOf(28 to "Action", 12 to "Adventure")
 
-        val vm = buildViewModel("42")
+        val vm = buildViewModel(42)
 
         vm.uiState.test {
             val state = awaitItem()
             assertTrue(state is DetailsUiState.Success)
             val success = state as DetailsUiState.Success
             assertEquals(42, success.movie.id)
-            // fakeMovie has genreIds=[28]; genre 12 ("Adventure") is filtered out
             assertEquals(listOf("Action"), success.genres)
             cancelAndIgnoreRemainingEvents()
         }
@@ -67,7 +65,7 @@ class DetailsViewModelTest {
     fun `loadDetail emits Error when repository throws`() = runTest {
         coEvery { repo.getMovieDetail(any()) } throws RuntimeException("network dead")
 
-        val vm = buildViewModel("42")
+        val vm = buildViewModel(42)
 
         vm.uiState.test {
             val state = awaitItem()
@@ -82,8 +80,7 @@ class DetailsViewModelTest {
     @Test
     fun `init tracks details screen`() = runTest {
         coEvery { repo.getMovieDetail(any()) } returns flowOf(fakeMovie(1))
-        coEvery { repo.getGenres() } returns emptyMap()
-        buildViewModel("1")
+        buildViewModel(1)
         verify { tracker.trackScreen("details") }
     }
 
@@ -93,9 +90,8 @@ class DetailsViewModelTest {
     fun `toggleFavorite optimistically flips isFavorite in uiState`() = runTest {
         val movie = fakeMovie(42, isFavorite = false)
         coEvery { repo.getMovieDetail(42) } returns flowOf(movie)
-        coEvery { repo.getGenres() } returns emptyMap()
 
-        val vm = buildViewModel("42")
+        val vm = buildViewModel(42)
 
         vm.uiState.test {
             awaitItem() as DetailsUiState.Success // initial Success (isFavorite=false)
@@ -112,9 +108,8 @@ class DetailsViewModelTest {
     fun `toggleFavorite calls repository toggleFavorite`() = runTest {
         val movie = fakeMovie(42, isFavorite = false)
         coEvery { repo.getMovieDetail(42) } returns flowOf(movie)
-        coEvery { repo.getGenres() } returns emptyMap()
 
-        val vm = buildViewModel("42")
+        val vm = buildViewModel(42)
         vm.uiState.test {
             awaitItem() // wait for Success
             vm.toggleFavorite()
@@ -124,15 +119,45 @@ class DetailsViewModelTest {
         coVerify { repo.toggleFavorite(any()) }
     }
 
+    // ── toggleFavorite rollback on failure ────────────────────────────────────
+
+    @Test
+    fun `toggleFavorite reverts uiState and emits ShowError event when repository throws`() = runTest {
+        val movie = fakeMovie(42, isFavorite = false)
+        coEvery { repo.getMovieDetail(42) } returns flowOf(movie)
+        coEvery { repo.toggleFavorite(any()) } throws RuntimeException("DB error")
+
+        val vm = buildViewModel(42)
+
+        vm.uiState.test {
+            val initial = awaitItem() as DetailsUiState.Success
+            assertFalse(initial.movie.isFavorite)
+
+            vm.toggleFavorite()
+
+            val optimistic = awaitItem() as DetailsUiState.Success
+            assertTrue(optimistic.movie.isFavorite)
+
+            val reverted = awaitItem() as DetailsUiState.Success
+            assertFalse(reverted.movie.isFavorite)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        vm.events.test {
+            val event = awaitItem()
+            assertTrue(event is DetailsEvent.ShowError)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ── toggleFavorite does nothing when state is not Success ─────────────────
 
     @Test
     fun `toggleFavorite is no-op when uiState is Loading`() = runTest {
-        // Repository never emits — state stays Loading
         coEvery { repo.getMovieDetail(any()) } returns kotlinx.coroutines.flow.flow { /* hang */ }
-        coEvery { repo.getGenres() } returns emptyMap()
 
-        val vm = buildViewModel("42")
+        val vm = buildViewModel(42)
 
         vm.uiState.test {
             assertEquals(DetailsUiState.Loading, awaitItem())

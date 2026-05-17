@@ -8,7 +8,9 @@ sealed class HomeUiState {
     data class Success(
         val movies: List<MovieModel>,
         val isLoadingMore: Boolean,
-        val viewMode: ViewMode = ViewMode.GRID
+        val viewMode: ViewMode = ViewMode.GRID,
+        val isQueryActive: Boolean = false,
+        val errorOnPage: Int? = null
     ) : HomeUiState()
     data class Error(val message: String) : HomeUiState()
 }
