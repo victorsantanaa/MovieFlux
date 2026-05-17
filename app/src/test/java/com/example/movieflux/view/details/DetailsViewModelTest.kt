@@ -1,5 +1,7 @@
 package com.example.movieflux.view.details
 
+import android.content.Context
+import android.content.Intent
 import app.cash.turbine.test
 import androidx.lifecycle.SavedStateHandle
 import com.example.movieflux.analytics.AnalyticsTracker
@@ -7,7 +9,15 @@ import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.fakeMovie
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkConstructor
+import io.mockk.mockkStatic
+import io.mockk.runs
+import io.mockk.slot
+import io.mockk.unmockkConstructor
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -165,6 +175,44 @@ class DetailsViewModelTest {
 
             coVerify(exactly = 0) { repo.toggleFavorite(any()) }
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── share — builds correct chooser intent ─────────────────────────────────
+
+    @Test
+    fun `share builds chooser intent containing movie title and TMDB URL`() = runTest {
+        val movie = fakeMovie(42)
+        coEvery { repo.getMovieDetail(42) } returns flowOf(movie)
+        val vm = buildViewModel(42)
+
+        vm.uiState.test {
+            awaitItem() // Success
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        mockkConstructor(Intent::class)
+        mockkStatic(Intent::class)
+        try {
+            val textSlot = slot<String>()
+            every { anyConstructed<Intent>().setType(any()) } returns mockk(relaxed = true)
+            every {
+                anyConstructed<Intent>().putExtra(eq(Intent.EXTRA_TEXT), capture(textSlot))
+            } returns mockk(relaxed = true)
+
+            val chooserIntent = mockk<Intent>(relaxed = true)
+            every { Intent.createChooser(any(), any()) } returns chooserIntent
+
+            val context = mockk<Context>(relaxed = true)
+            vm.share(context)
+
+            verify { context.startActivity(chooserIntent) }
+            assertTrue(textSlot.isCaptured)
+            assertTrue(textSlot.captured.contains(movie.title))
+            assertTrue(textSlot.captured.contains("https://www.themoviedb.org/movie/42"))
+        } finally {
+            unmockkConstructor(Intent::class)
+            unmockkStatic(Intent::class)
         }
     }
 }

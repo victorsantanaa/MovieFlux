@@ -243,4 +243,43 @@ class MovieRepositoryImplTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    // ── Row 12: searchMovies populates both isFavorite and genreNames ─────────
+
+    @Test
+    fun `searchMovies emits results with isFavorite and genreNames populated`() = runTest {
+        val genreResponse = GenreResponse(
+            genres = listOf(GenreDto(28, "Action"), GenreDto(12, "Adventure"))
+        )
+        coEvery { api.genres() } returns genreResponse
+        coEvery { dao.getFavoriteIds() } returns listOf(1)
+        coEvery { api.search("hero") } returns response(1, 2)
+
+        repo.searchMovies("hero").test {
+            val items = awaitItem()
+            assertTrue(items.first { it.id == 1 }.isFavorite)
+            assertFalse(items.first { it.id == 2 }.isFavorite)
+            assertEquals(listOf("Action", "Adventure"), items.first().genreNames)
+            awaitComplete()
+        }
+    }
+
+    // ── Row 13: getMovieDetail fallback chain favorites → cache → network ─────
+
+    @Test
+    fun `getMovieDetail emits from favorites first then from network`() = runTest {
+        coEvery { dao.getFavoriteIds() } returns listOf(10)
+        coEvery { dao.getFavoriteById(10) } returns movieEntity(10)
+        coEvery { api.getMovieDetail(10) } returns detailDto(10)
+
+        repo.getMovieDetail(10).test {
+            val fromFavorites = awaitItem()
+            assertEquals(10, fromFavorites.id)
+
+            val fromNetwork = awaitItem()
+            assertEquals(10, fromNetwork.id)
+
+            awaitComplete()
+        }
+    }
 }
