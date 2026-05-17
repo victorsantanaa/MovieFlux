@@ -11,4 +11,7 @@
     <string name="biometric_opt_in_message">Use your fingerprint or face to sign in faster next time.</string>
     <string name="biometric_opt_in_enable">Enable</string>
     <string name="biometric_opt_in_skip">Skip</string>
+    <string name="biometric_failed_title">Biometric login failed</string>
+    <string name="biometric_use_password">Use password instead</string>
+    <string name="biometric_retry">Try again</string>
 </resources>

@@ -3,7 +3,10 @@ package com.example.movieflux
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.metrics.performance.JankStats
@@ -15,6 +18,8 @@ import com.example.movieflux.navigation.AppNavHost
 import com.example.movieflux.navigation.Screen
 import com.example.movieflux.performance.JankReporter
 import com.example.movieflux.ui.theme.MovieFluxTheme
+import com.example.movieflux.view.biometric.BiometricGate
+import com.example.movieflux.view.biometric.BiometricGateState
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -31,7 +36,7 @@ class MainActivity : AppCompatActivity() {
         val isLoggedIn = authPreferences.isLoggedIn
         val needsBiometric = isLoggedIn &&
             authPreferences.biometricEnabled &&
-            biometricHelper.canAuthenticate(this) == BiometricAvailability.Available
+            biometricHelper.canAuthenticate() == BiometricAvailability.Available
 
         // Start at MainGraph if already logged in and no biometric required.
         // If biometric is needed, start at AuthGraph and navigate to Main on success.
@@ -44,24 +49,37 @@ class MainActivity : AppCompatActivity() {
         setContent {
             MovieFluxTheme {
                 val rootNavController = rememberNavController()
+                var gateState by remember {
+                    mutableStateOf(
+                        if (needsBiometric) BiometricGateState.Checking else BiometricGateState.Passed
+                    )
+                }
 
-                if (needsBiometric) {
-                    LaunchedEffect(Unit) {
+                BiometricGate(
+                    state = gateState,
+                    onRetry = { gateState = BiometricGateState.Checking },
+                    onUsePassword = {
+                        gateState = BiometricGateState.Passed
+                        rootNavController.navigate(Screen.AuthGraph.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onResolved = { gateState = it },
+                    authenticate = { onSuccess, onError ->
                         biometricHelper.authenticate(
                             activity = this@MainActivity,
                             onSuccess = {
                                 rootNavController.navigate(Screen.MainGraph.route) {
                                     popUpTo(0) { inclusive = true }
                                 }
+                                onSuccess()
                             },
-                            onError = {
-                                // Stay on AuthGraph — user must re-login manually
-                            }
+                            onError = onError
                         )
                     }
+                ) {
+                    AppNavHost(rootNavController, startDestination)
                 }
-
-                AppNavHost(rootNavController, startDestination)
             }
         }
 
