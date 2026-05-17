@@ -12,5 +12,6 @@ fun MovieDetailDto.toDomain(isFavorite: Boolean): MovieModel = MovieModel(
     posterUrl = poster_path?.let { DETAIL_IMAGE_BASE_URL + it } ?: "",
     rating = vote_average,
     genreIds = genres.map { it.id },
-    isFavorite = isFavorite
+    isFavorite = isFavorite,
+    genreNames = genres.map { it.name }
 )

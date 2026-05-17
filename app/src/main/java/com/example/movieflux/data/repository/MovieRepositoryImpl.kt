@@ -10,12 +10,17 @@ import com.example.movieflux.domain.repository.MovieRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 class MovieRepositoryImpl @Inject constructor(
     private val api: RemoteDataSource,
     private val dao: MovieDao
 ) : MovieRepository {
+
+    private val genresMutex = Mutex()
+    @Volatile private var cachedGenres: Map<Int, String>? = null
 
     override fun getPopularMovies(page: Int): Flow<List<MovieModel>> = flow {
         val favoriteIds = dao.getFavoriteIds().toSet()
@@ -28,6 +33,7 @@ class MovieRepositoryImpl @Inject constructor(
 
         // 2. Fetch from network
         try {
+            val genres = getGenres()
             val remote = api.getPopular(page)
             val entities = remote.results.map { it.toCacheEntity(page) }
 
@@ -38,7 +44,10 @@ class MovieRepositoryImpl @Inject constructor(
             val remoteIds = entities.map { it.id }
             val cachedIds = cached.map { it.id }
             if (remoteIds != cachedIds) {
-                emit(entities.map { it.toDomain(isFavorite = it.id in favoriteIds) })
+                emit(remote.results.map { dto ->
+                    dto.toDomain(isFavorite = dto.id in favoriteIds)
+                        .copy(genreNames = dto.genre_ids.mapNotNull { genres[it] })
+                })
             }
         } catch (e: Exception) {
             // No cache was emitted (page not yet loaded) — propagate so the UI shows an error
@@ -54,14 +63,24 @@ class MovieRepositoryImpl @Inject constructor(
         else dao.insert(movie.toEntity())
     }
 
-    override suspend fun getGenres(): Map<Int, String> =
-        api.genres().genres.associate { it.id to it.name }
+    override suspend fun getGenres(): Map<Int, String> {
+        cachedGenres?.let { return it }
+        return genresMutex.withLock {
+            cachedGenres ?: api.genres().genres
+                .associate { it.id to it.name }
+                .also { cachedGenres = it }
+        }
+    }
 
     override fun searchMovies(query: String): Flow<List<MovieModel>> = flow {
         // Search results are transient — no cache
         val favoriteIds = dao.getFavoriteIds().toSet()
+        val genres = getGenres()
         val result = api.search(query)
-        emit(result.results.map { it.toDomain(isFavorite = it.id in favoriteIds) })
+        emit(result.results.map { dto ->
+            dto.toDomain(isFavorite = dto.id in favoriteIds)
+                .copy(genreNames = dto.genre_ids.mapNotNull { genres[it] })
+        })
     }
 
     override fun getMovieDetail(id: Int): Flow<MovieModel> = flow {

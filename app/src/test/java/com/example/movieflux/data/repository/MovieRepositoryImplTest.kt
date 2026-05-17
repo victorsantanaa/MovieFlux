@@ -5,6 +5,7 @@ import com.example.movieflux.data.local.CachedMovieEntity
 import com.example.movieflux.data.local.MovieDao
 import com.example.movieflux.data.local.MovieEntity
 import com.example.movieflux.data.remote.GenreDto
+import com.example.movieflux.data.remote.GenreResponse
 import com.example.movieflux.data.remote.MovieDetailDto
 import com.example.movieflux.data.remote.MovieDto
 import com.example.movieflux.data.remote.MovieResponse
@@ -62,6 +63,7 @@ class MovieRepositoryImplTest {
 
     @Test
     fun `getPopularMovies emits results with isFavorite joined from favorites DAO`() = runTest {
+        coEvery { api.genres() } returns GenreResponse(emptyList())
         coEvery { dao.getFavoriteIds() } returns listOf(1, 3)
         coEvery { dao.getCachedPage(1) } returns emptyList()
         coEvery { api.getPopular(1) } returns response(1, 2, 3)
@@ -80,6 +82,7 @@ class MovieRepositoryImplTest {
 
     @Test
     fun `getPopularMovies emits cache before network and calls network exactly once`() = runTest {
+        coEvery { api.genres() } returns GenreResponse(emptyList())
         coEvery { dao.getFavoriteIds() } returns emptyList()
         coEvery { dao.getCachedPage(1) } returns listOf(cachedEntity(10), cachedEntity(11))
         coEvery { api.getPopular(1) } returns response(10, 11) // same IDs → no second emit
@@ -125,6 +128,7 @@ class MovieRepositoryImplTest {
 
     @Test
     fun `searchMovies emits results with isFavorite joined from DAO`() = runTest {
+        coEvery { api.genres() } returns GenreResponse(emptyList())
         coEvery { dao.getFavoriteIds() } returns listOf(2)
         coEvery { api.search("batman") } returns response(1, 2, 3)
 
@@ -207,5 +211,36 @@ class MovieRepositoryImplTest {
     }
 
     // ── Row 11: getGenres caching ─────────────────────────────────────────────
-    // Deferred to Phase 13 — in-memory genre cache is implemented there.
+
+    @Test
+    fun `getGenres calls API only once across multiple invocations`() = runTest {
+        val genreResponse = GenreResponse(
+            genres = listOf(GenreDto(28, "Action"), GenreDto(12, "Adventure"))
+        )
+        coEvery { api.genres() } returns genreResponse
+
+        val first = repo.getGenres()
+        val second = repo.getGenres()
+
+        assertEquals(mapOf(28 to "Action", 12 to "Adventure"), first)
+        assertEquals(first, second)
+        coVerify(exactly = 1) { api.genres() }
+    }
+
+    @Test
+    fun `getPopularMovies populates genreNames from cached genre map`() = runTest {
+        val genreResponse = GenreResponse(
+            genres = listOf(GenreDto(28, "Action"), GenreDto(12, "Adventure"))
+        )
+        coEvery { api.genres() } returns genreResponse
+        coEvery { dao.getFavoriteIds() } returns emptyList()
+        coEvery { dao.getCachedPage(1) } returns emptyList()
+        coEvery { api.getPopular(1) } returns response(1, 2)
+
+        repo.getPopularMovies(1).test {
+            val items = awaitItem()
+            assertEquals(listOf("Action", "Adventure"), items.first().genreNames)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }
