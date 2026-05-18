@@ -3,6 +3,7 @@ package com.example.movieflux.view.profile
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
@@ -21,8 +22,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.movieflux.R
 import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.ButtonSize
 import com.example.movieflux.view.components.LogoutConfirmDialog
@@ -74,6 +77,20 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 subtitle = "Use your fingerprint to sign in faster",
                 checked = uiState.biometricEnabled,
                 onCheckedChange = vm::setBiometricEnabled
+            )
+
+            Text(
+                text = stringResource(R.string.profile_theme_section),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            ThemeSelector(
+                themeMode = uiState.themeMode,
+                onModeChange = vm::setThemeMode,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
             )
 
             Text(

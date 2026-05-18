@@ -5,6 +5,8 @@ import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.biometric.BiometricAvailability
 import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
+import com.example.movieflux.data.preferences.ThemeRepository
+import com.example.movieflux.ui.theme.ThemeMode
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -12,11 +14,13 @@ import io.mockk.runs
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -30,11 +34,16 @@ class ProfileViewModelTest {
     private val authPreferences: AuthPreferences = mockk(relaxed = true)
     private val biometricHelper: BiometricHelper = mockk()
     private val tracker: AnalyticsTracker = mockk(relaxed = true)
+    private val themeRepository: ThemeRepository = mockk()
 
-    private fun buildViewModel(): ProfileViewModel {
+    private fun buildViewModel(
+        themeFlow: MutableStateFlow<ThemeMode> = MutableStateFlow(ThemeMode.SYSTEM),
+    ): ProfileViewModel {
         every { biometricHelper.canAuthenticate() } returns BiometricAvailability.Available
         every { authPreferences.biometricEnabled } returns false
-        return ProfileViewModel(authPreferences, biometricHelper, tracker)
+        every { themeRepository.themeMode } returns themeFlow
+        every { themeRepository.setThemeMode(any()) } just runs
+        return ProfileViewModel(authPreferences, biometricHelper, tracker, themeRepository)
     }
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
@@ -126,5 +135,28 @@ class ProfileViewModelTest {
     fun `init tracks profile screen`() {
         buildViewModel()
         verify { tracker.trackScreen("profile") }
+    }
+
+    // ── themeRepository integration ───────────────────────────────────────────
+
+    @Test
+    fun `init observes themeRepository and mirrors theme mode into uiState`() = runTest {
+        val themeFlow = MutableStateFlow(ThemeMode.SYSTEM)
+        val vm = buildViewModel(themeFlow)
+
+        vm.uiState.test {
+            assertEquals(ThemeMode.SYSTEM, awaitItem().themeMode)
+            themeFlow.value = ThemeMode.DARK
+            assertEquals(ThemeMode.DARK, awaitItem().themeMode)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setThemeMode delegates to repository and fires analytics`() {
+        val vm = buildViewModel()
+        vm.setThemeMode(ThemeMode.LIGHT)
+        verify { themeRepository.setThemeMode(ThemeMode.LIGHT) }
+        verify { tracker.trackEvent("theme_changed", mapOf("mode" to "LIGHT")) }
     }
 }

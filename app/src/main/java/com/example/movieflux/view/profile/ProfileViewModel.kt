@@ -7,6 +7,8 @@ import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.biometric.BiometricAvailability
 import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
+import com.example.movieflux.data.preferences.ThemeRepository
+import com.example.movieflux.ui.theme.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +28,8 @@ sealed class ProfileUiEvent {
 class ProfileViewModel @Inject constructor(
     private val authPreferences: AuthPreferences,
     private val biometricHelper: BiometricHelper,
-    private val tracker: AnalyticsTracker
+    private val tracker: AnalyticsTracker,
+    private val themeRepository: ThemeRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -43,6 +46,11 @@ class ProfileViewModel @Inject constructor(
                 biometricAvailable = biometricHelper.canAuthenticate() == BiometricAvailability.Available,
                 appVersion = BuildConfig.VERSION_NAME
             )
+        }
+        viewModelScope.launch {
+            themeRepository.themeMode.collect { mode ->
+                _uiState.update { it.copy(themeMode = mode) }
+            }
         }
     }
 
@@ -68,6 +76,11 @@ class ProfileViewModel @Inject constructor(
             authPreferences.biometricEnabled = false
             _uiState.update { it.copy(biometricEnabled = false) }
         }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        tracker.trackEvent("theme_changed", mapOf("mode" to mode.name))
+        themeRepository.setThemeMode(mode)
     }
 
     fun requestLogout() {

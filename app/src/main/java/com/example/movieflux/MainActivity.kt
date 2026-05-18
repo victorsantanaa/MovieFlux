@@ -9,11 +9,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.metrics.performance.JankStats
 import androidx.navigation.compose.rememberNavController
 import com.example.movieflux.data.biometric.BiometricAvailability
 import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
+import com.example.movieflux.data.preferences.ThemeRepository
 import com.example.movieflux.navigation.AppNavHost
 import com.example.movieflux.navigation.Screen
 import com.example.movieflux.performance.JankReporter
@@ -32,6 +34,8 @@ class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var jankReporter: JankReporter
 
+    @Inject lateinit var themeRepository: ThemeRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -40,8 +44,6 @@ class MainActivity : AppCompatActivity() {
             authPreferences.biometricEnabled &&
             biometricHelper.canAuthenticate() == BiometricAvailability.Available
 
-        // Start at MainGraph if already logged in and no biometric required.
-        // If biometric is needed, start at AuthGraph and navigate to Main on success.
         val startDestination = if (isLoggedIn && !needsBiometric) {
             Screen.MainGraph.route
         } else {
@@ -49,7 +51,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContent {
-            MovieFluxTheme {
+            val themeMode by themeRepository.themeMode.collectAsStateWithLifecycle()
+
+            MovieFluxTheme(themeMode = themeMode) {
                 val rootNavController = rememberNavController()
                 var effectiveStart by remember { mutableStateOf(startDestination) }
                 var gateState by remember {
