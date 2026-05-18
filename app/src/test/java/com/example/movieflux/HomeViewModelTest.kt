@@ -152,7 +152,7 @@ class HomeViewModelTest {
             repo.shouldThrow = true
             viewModel.loadNextPage()
             skipItems(1) // isLoadingMore=true
-            awaitItem()  // errorOnPage=2
+            awaitItem() // errorOnPage=2
 
             // Retry succeeds
             repo.shouldThrow = false

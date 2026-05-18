@@ -13,7 +13,7 @@ class UiPreferencesTest {
         override fun getString(key: String, defValue: String?) = data[key] ?: defValue
         override fun edit(): SharedPreferences.Editor = object : SharedPreferences.Editor {
             override fun putString(key: String, value: String?) = apply { data[key] = value }
-            override fun apply() {}
+            override fun apply() = Unit
             override fun commit() = true
             override fun clear() = apply { data.clear() }
             override fun remove(key: String) = apply { data.remove(key) }
@@ -31,8 +31,12 @@ class UiPreferencesTest {
         override fun getFloat(key: String, defValue: Float) = defValue
         override fun getStringSet(key: String, defValues: MutableSet<String>?) = defValues
         override fun contains(key: String) = data.containsKey(key)
-        override fun registerOnSharedPreferenceChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener) {}
-        override fun unregisterOnSharedPreferenceChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener) {}
+        override fun registerOnSharedPreferenceChangeListener(
+            l: SharedPreferences.OnSharedPreferenceChangeListener,
+        ) = Unit
+        override fun unregisterOnSharedPreferenceChangeListener(
+            l: SharedPreferences.OnSharedPreferenceChangeListener
+        ) = Unit
     }
 
     private fun uiPrefs(prefs: SharedPreferences = FakeSharedPreferences()) = UiPreferences(prefs)

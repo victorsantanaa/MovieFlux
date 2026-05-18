@@ -56,7 +56,11 @@ class ProfileViewModel @Inject constructor(
                 BiometricAvailability.NoHardware ->
                     emitEvent(ProfileUiEvent.BiometricUnavailable("No biometric hardware found"))
                 BiometricAvailability.NoneEnrolled ->
-                    emitEvent(ProfileUiEvent.BiometricUnavailable("No fingerprints enrolled. Go to Settings > Security to add one"))
+                    emitEvent(
+                        ProfileUiEvent.BiometricUnavailable(
+                            "No fingerprints enrolled. Go to Settings > Security to add one"
+                        )
+                    )
                 BiometricAvailability.Unavailable ->
                     emitEvent(ProfileUiEvent.BiometricUnavailable("Biometric authentication is unavailable"))
             }

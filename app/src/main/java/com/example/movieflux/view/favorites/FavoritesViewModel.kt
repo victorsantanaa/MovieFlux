@@ -34,8 +34,11 @@ class FavoritesViewModel @Inject constructor(
         _viewMode,
         _searchQuery
     ) { movies, viewMode, query ->
-        val filtered = if (query.isBlank()) movies
-                       else movies.filter { it.title.contains(query, ignoreCase = true) }
+        val filtered = if (query.isBlank()) {
+            movies
+        } else {
+            movies.filter { it.title.contains(query, ignoreCase = true) }
+        }
         FavoritesUiState.Success(movies = filtered, viewMode = viewMode)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FavoritesUiState.Loading)
 

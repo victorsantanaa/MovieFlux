@@ -2,19 +2,17 @@ package com.example.movieflux.view.details
 
 import android.content.Context
 import android.content.Intent
-import app.cash.turbine.test
 import androidx.lifecycle.SavedStateHandle
+import app.cash.turbine.test
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.fakeMovie
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkStatic
-import io.mockk.runs
 import io.mockk.slot
 import io.mockk.unmockkConstructor
 import io.mockk.unmockkStatic
@@ -32,6 +30,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DetailsViewModelTest {
@@ -48,6 +47,7 @@ class DetailsViewModelTest {
         )
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
+
     @After fun tearDown() = Dispatchers.resetMain()
 
     // ── loadDetail → Success ──────────────────────────────────────────────────
@@ -73,7 +73,7 @@ class DetailsViewModelTest {
 
     @Test
     fun `loadDetail emits Error when repository throws`() = runTest {
-        coEvery { repo.getMovieDetail(any()) } throws RuntimeException("network dead")
+        coEvery { repo.getMovieDetail(any()) } throws IOException("network dead")
 
         val vm = buildViewModel(42)
 

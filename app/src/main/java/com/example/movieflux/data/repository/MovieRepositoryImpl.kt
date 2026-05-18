@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 class MovieRepositoryImpl @Inject constructor(
@@ -20,6 +22,7 @@ class MovieRepositoryImpl @Inject constructor(
 ) : MovieRepository {
 
     private val genresMutex = Mutex()
+
     @Volatile private var cachedGenres: Map<Int, String>? = null
 
     override fun getPopularMovies(page: Int): Flow<List<MovieModel>> = flow {
@@ -52,7 +55,9 @@ class MovieRepositoryImpl @Inject constructor(
             if (remoteIds != cachedIds) {
                 emit(entities.map { it.toDomain(isFavorite = it.id in favoriteIds) })
             }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+            if (cached.isEmpty()) throw e
+        } catch (e: HttpException) {
             if (cached.isEmpty()) throw e
         }
     }
@@ -67,8 +72,11 @@ class MovieRepositoryImpl @Inject constructor(
         }
 
     override suspend fun toggleFavorite(movie: MovieModel) {
-        if (movie.isFavorite) dao.delete(movie.toEntity())
-        else dao.insert(movie.toEntity())
+        if (movie.isFavorite) {
+            dao.delete(movie.toEntity())
+        } else {
+            dao.insert(movie.toEntity())
+        }
     }
 
     override suspend fun getGenres(): Map<Int, String> {
@@ -85,10 +93,12 @@ class MovieRepositoryImpl @Inject constructor(
         val favoriteIds = dao.getFavoriteIds().toSet()
         val genres = getGenres()
         val result = api.search(query)
-        emit(result.results.map { dto ->
-            dto.toDomain(isFavorite = dto.id in favoriteIds)
-                .copy(genreNames = dto.genre_ids.mapNotNull { genres[it] })
-        })
+        emit(
+            result.results.map { dto ->
+                dto.toDomain(isFavorite = dto.id in favoriteIds)
+                    .copy(genreNames = dto.genre_ids.mapNotNull { genres[it] })
+            }
+        )
     }
 
     override fun getMovieDetail(id: Int): Flow<MovieModel> = flow {
@@ -114,8 +124,10 @@ class MovieRepositoryImpl @Inject constructor(
             val dto = api.getMovieDetail(id)
             dao.upsertCachedMovie(dto.toCacheEntity())
             emit(dto.toDomain(isFavorite = isFavorite))
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             // Only propagate if we had nothing to show from cache
+            if (favorite == null && dao.getCachedById(id) == null) throw e
+        } catch (e: HttpException) {
             if (favorite == null && dao.getCachedById(id) == null) throw e
         }
     }

@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -110,7 +112,9 @@ class HomeViewModel @Inject constructor(
                     _popularMovies.value = movies
                     _loadState.update { it.copy(isInitialLoading = false, errorOnPage = null) }
                 }
-            } catch (e: Exception) {
+            } catch (e: IOException) {
+                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Something went wrong") }
+            } catch (e: HttpException) {
                 _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Something went wrong") }
             }
         }
@@ -123,11 +127,19 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 useCase(currentPage).collect { newMovies ->
-                    if (newMovies.isEmpty()) canLoadMore = false
-                    else _popularMovies.update { current -> (current + newMovies).distinctBy { it.id } }
+                    if (newMovies.isEmpty()) {
+                        canLoadMore = false
+                    } else {
+                        _popularMovies.update { current -> (current + newMovies).distinctBy { it.id } }
+                    }
                     _loadState.update { it.copy(isLoadingMore = false, errorOnPage = null) }
                 }
-            } catch (e: Exception) {
+            } catch (e: IOException) {
+                val failedPage = currentPage
+                currentPage--
+                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = failedPage) }
+                _events.trySend(HomeEvent.PaginationError(e.message))
+            } catch (e: HttpException) {
                 val failedPage = currentPage
                 currentPage--
                 _loadState.update { it.copy(isLoadingMore = false, errorOnPage = failedPage) }

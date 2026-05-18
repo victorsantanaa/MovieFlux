@@ -1,7 +1,6 @@
 package com.example.movieflux
 
 import android.app.Application
-import com.example.movieflux.BuildConfig
 import dagger.hilt.android.HiltAndroidApp
 import timber.log.Timber
 

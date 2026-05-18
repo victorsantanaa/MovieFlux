@@ -4,7 +4,7 @@ import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 class FakeMovieRepository : MovieRepository {
 
@@ -17,13 +17,13 @@ class FakeMovieRepository : MovieRepository {
 
     override fun getPopularMovies(page: Int): Flow<List<MovieModel>> =
         kotlinx.coroutines.flow.flow {
-            if (shouldThrow) throw RuntimeException("Network error")
+            if (shouldThrow) throw IOException("Network error")
             emit(popularMovies)
         }
 
     override fun searchMovies(query: String): Flow<List<MovieModel>> =
         kotlinx.coroutines.flow.flow {
-            if (shouldThrowOnSearch) throw RuntimeException("Search error")
+            if (shouldThrowOnSearch) throw IOException("Search error")
             emit(searchResults)
         }
 
@@ -31,14 +31,17 @@ class FakeMovieRepository : MovieRepository {
 
     override fun getMovieDetail(id: Int): Flow<MovieModel> =
         kotlinx.coroutines.flow.flow {
-            if (shouldThrow) throw RuntimeException("Network error")
+            if (shouldThrow) throw IOException("Network error")
             emit(movieDetail ?: popularMovies.firstOrNull { it.id == id } ?: error("not found"))
         }
 
     override suspend fun toggleFavorite(movie: MovieModel) {
         val current = favorites.value.toMutableList()
-        if (movie.isFavorite) current.removeAll { it.id == movie.id }
-        else current.add(movie.copy(isFavorite = true))
+        if (movie.isFavorite) {
+            current.removeAll { it.id == movie.id }
+        } else {
+            current.add(movie.copy(isFavorite = true))
+        }
         favorites.value = current
     }
 

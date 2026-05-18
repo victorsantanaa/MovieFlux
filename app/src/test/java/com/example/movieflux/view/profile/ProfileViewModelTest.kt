@@ -38,6 +38,7 @@ class ProfileViewModelTest {
     }
 
     @Before fun setUp() = Dispatchers.setMain(dispatcher)
+
     @After fun tearDown() = Dispatchers.resetMain()
 
     // ── setBiometricEnabled(true) when Available → persists ──────────────────

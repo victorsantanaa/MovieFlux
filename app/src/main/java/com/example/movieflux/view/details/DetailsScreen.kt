@@ -32,7 +32,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -53,9 +52,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import kotlin.math.abs
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -65,6 +62,7 @@ import com.example.movieflux.performance.JankStateEffect
 import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.ErrorView
 import com.example.movieflux.view.components.LoadingView
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,18 +111,20 @@ fun DetailsScreen(
                 val movie = (uiState as DetailsUiState.Success).movie
                 FloatingActionButton(
                     onClick = vm::toggleFavorite,
-                    containerColor = if (movie.isFavorite)
+                    containerColor = if (movie.isFavorite) {
                         MaterialTheme.colorScheme.primary
-                    else
+                    } else {
                         MaterialTheme.colorScheme.surfaceVariant
+                    }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Favorite,
                         contentDescription = if (movie.isFavorite) "Remove from favorites" else "Add to favorites",
-                        tint = if (movie.isFavorite)
+                        tint = if (movie.isFavorite) {
                             MaterialTheme.colorScheme.onPrimary
-                        else
+                        } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                 }
             }

@@ -27,7 +27,9 @@ import javax.inject.Inject
 class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var authPreferences: AuthPreferences
+
     @Inject lateinit var biometricHelper: BiometricHelper
+
     @Inject lateinit var jankReporter: JankReporter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,8 +85,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val jankStats = JankStats.createAndTrack(window, jankReporter)
-        lifecycle.addObserver(LifecycleEventObserver { _, event ->
-            jankStats.isTrackingEnabled = (event == Lifecycle.Event.ON_RESUME)
-        })
+        lifecycle.addObserver(
+            LifecycleEventObserver { _, event ->
+                jankStats.isTrackingEnabled = (event == Lifecycle.Event.ON_RESUME)
+            }
+        )
     }
 }
