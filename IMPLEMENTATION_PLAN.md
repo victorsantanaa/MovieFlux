@@ -466,6 +466,8 @@ Run on emulator, log in with `admin / 1234`, confirm `Success`.
 
 ## Phase 2B — Firebase Authentication & Registration
 
+> **REMOVED FROM SCOPE.** Mocked `admin/1234` (Phase 2) is the only auth path. See README "Decisões fora do escopo" for rationale.
+
 **Goal:** Replace the mocked `admin / 1234` login with **Firebase Authentication (Email/Password)** and introduce a **Registration** screen. After this phase, real accounts are created in Firebase, the session is driven by `FirebaseAuth.currentUser`, and `AuthPreferences.isLoggedIn` becomes a cached mirror of that state (not the source of truth).
 
 ### 2B.0 — Why Firebase
@@ -776,6 +778,8 @@ In the "Forgot password?" dialog opened from §2B.8:
 ---
 
 ## Phase 2C — Google Sign-In (Credential Manager + Firebase)
+
+> **REMOVED FROM SCOPE.** Mocked `admin/1234` (Phase 2) is the only auth path. See README "Decisões fora do escopo" for rationale.
 
 **Goal:** Add **"Continue with Google"** to the Login and Register screens, using **Credential Manager** (Google's current recommended API — `GoogleSignInClient` is deprecated as of late 2024) and exchanging the returned Google ID token for a Firebase credential. After this phase a user can either email/password-register or one-tap into the app with their Google account; both paths land in the same `FirebaseAuth.currentUser` and the rest of the app behaves identically.
 
@@ -1414,6 +1418,8 @@ The sync is structural, not manual: `getFavorites()` is a `Flow<List<MovieEntity
 ---
 
 ## Phase 9 — Observability, Performance, Tests & README
+
+> **REMOVED FROM SCOPE.** Mocked `admin/1234` (Phase 2) is the only auth path. See README "Decisões fora do escopo" for rationale.
 
 **Goal:** Production-grade observability covering render performance, frames/jank, crashes (fatal + non-fatal), key flow timings, and a CI performance regression gate. Plus unit test coverage and delivery-ready README.
 
