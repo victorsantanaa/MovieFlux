@@ -3,6 +3,7 @@ package com.example.movieflux.view.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.analytics.AnalyticsTracker
+import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
@@ -30,7 +31,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val useCase: GetPopularMoviesUseCase,
     private val repository: MovieRepository,
-    private val tracker: AnalyticsTracker
+    private val tracker: AnalyticsTracker,
+    private val uiPreferences: UiPreferences
 ) : ViewModel() {
 
     private var currentPage = 1
@@ -48,7 +50,7 @@ class HomeViewModel @Inject constructor(
 
     private val _popularMovies = MutableStateFlow<List<MovieModel>>(emptyList())
     private val _loadState = MutableStateFlow(LoadState())
-    private val _viewMode = MutableStateFlow(ViewMode.GRID)
+    private val _viewMode = MutableStateFlow(uiPreferences.getHomeViewMode())
 
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -145,6 +147,7 @@ class HomeViewModel @Inject constructor(
 
     fun setViewMode(mode: ViewMode) {
         tracker.trackEvent("view_mode_changed", mapOf("screen" to "home", "mode" to mode.name))
+        uiPreferences.setHomeViewMode(mode)
         _viewMode.value = mode
     }
 }
