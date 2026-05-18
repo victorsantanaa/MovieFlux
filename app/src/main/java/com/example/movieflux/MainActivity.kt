@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             MovieFluxTheme {
                 val rootNavController = rememberNavController()
+                var effectiveStart by remember { mutableStateOf(startDestination) }
                 var gateState by remember {
                     mutableStateOf(
                         if (needsBiometric) BiometricGateState.Checking else BiometricGateState.Passed
@@ -59,26 +60,24 @@ class MainActivity : AppCompatActivity() {
                     state = gateState,
                     onRetry = { gateState = BiometricGateState.Checking },
                     onUsePassword = {
+                        effectiveStart = Screen.AuthGraph.route
                         gateState = BiometricGateState.Passed
-                        rootNavController.navigate(Screen.AuthGraph.route) {
-                            popUpTo(0) { inclusive = true }
-                        }
                     },
-                    onResolved = { gateState = it },
+                    onResolved = { newState ->
+                        if (newState is BiometricGateState.Passed && needsBiometric) {
+                            effectiveStart = Screen.MainGraph.route
+                        }
+                        gateState = newState
+                    },
                     authenticate = { onSuccess, onError ->
                         biometricHelper.authenticate(
                             activity = this@MainActivity,
-                            onSuccess = {
-                                rootNavController.navigate(Screen.MainGraph.route) {
-                                    popUpTo(0) { inclusive = true }
-                                }
-                                onSuccess()
-                            },
+                            onSuccess = { onSuccess() },
                             onError = onError
                         )
                     }
                 ) {
-                    AppNavHost(rootNavController, startDestination)
+                    AppNavHost(rootNavController, effectiveStart)
                 }
             }
         }
