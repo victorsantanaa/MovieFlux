@@ -3,6 +3,7 @@ package com.example.movieflux.view.login
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.example.movieflux.MainActivity
@@ -22,8 +23,8 @@ class LoginScreenTest {
 
     @Test
     fun login_with_valid_credentials_shows_biometric_opt_in_dialog() {
-        composeTestRule.onNodeWithText("Credencial").performTextInput("admin")
-        composeTestRule.onNodeWithText("Senha").performTextInput("1234")
+        composeTestRule.onNodeWithTag("username").performTextInput("admin")
+        composeTestRule.onNodeWithTag("password").performTextInput("1234")
         composeTestRule.onNodeWithText("Done").performClick()
         composeTestRule.onNodeWithText("Enable biometric login?").assertIsDisplayed()
     }

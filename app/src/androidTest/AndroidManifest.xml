@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- For testing, override the application class with HiltTestApp. The Hilt processor generates the concrete Application (HiltTestApp_Application) at compile time. -->
+    <application
+        android:name="com.example.movieflux.HiltTestApp"
+        tools:replace="android:name" xmlns:tools="http://schemas.android.com/tools" />
+
+</manifest>
+
