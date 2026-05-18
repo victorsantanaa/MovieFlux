@@ -27,6 +27,6 @@ class LoginScreenTest {
         composeTestRule.onNodeWithTag("username").performTextInput("admin")
         composeTestRule.onNodeWithTag("password").performTextInput("1234")
         composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.login_submit_button)).performClick()
-        composeTestRule.onNodeWithText("Enable biometric login?").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("biometric_opt_in_dialog").assertIsDisplayed()
     }
 }

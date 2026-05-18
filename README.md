@@ -102,6 +102,10 @@ Implementa as interfaces do domínio:
 - `view/profile/` — configurações do perfil e logout.
 - `navigation/` — `Screen` sealed class com quatro rotas; `AppNavHost` gerencia toda a navegação.
 
+### Observabilidade
+
+O subsistema de analytics é composto por `CompositeAnalyticsTracker` (delega para múltiplos sinks), `SampledAnalyticsTracker` (amostragem configurável por evento) e `FunnelTracker` (rastreia funis de conversão como o fluxo de login), todos backed por `TimberAnalyticsTracker` em debug. O `JankReporter` integra `JankStats` da Jetpack para detectar frames lentos e registrá-los via Timber; `JankStateEffect` expõe isso como um side-effect Compose reutilizável.
+
 ### Autenticação
 
 A autenticação é **intencionalmente mockada** (`admin/1234`), conforme definido no briefing do desafio. As implementações de Firebase Authentication e Google Sign-In (fases 2B e 2C do plano original) foram explicitamente descartadas do escopo de entrega.
