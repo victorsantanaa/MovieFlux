@@ -54,7 +54,7 @@ class HomeViewModel @Inject constructor(
     val events = _events.receiveAsFlow()
 
     private val activeMovies: Flow<Pair<List<MovieModel>, LoadState>> = _searchQuery
-        .debounce(300L)
+        .debounce { if (it.isBlank()) 0L else 300L }
         .distinctUntilChanged()
         .flatMapLatest { query ->
             if (query.isBlank()) {
@@ -78,7 +78,7 @@ class HomeViewModel @Inject constructor(
         val (movies, loadState) = pair
         when {
             loadState.error != null -> HomeUiState.Error(loadState.error)
-            loadState.isInitialLoading -> HomeUiState.Loading
+            loadState.isInitialLoading && movies.isEmpty() -> HomeUiState.Loading
             else -> {
                 val favoriteIds = favorites.map { it.id }.toSet()
                 HomeUiState.Success(

@@ -75,22 +75,28 @@ fun HomeScreen(onMovieClick: (Int) -> Unit) {
     val currentViewMode = (uiState as? HomeUiState.Success)?.viewMode ?: ViewMode.GRID
 
     LaunchedEffect(gridState) {
-        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+        snapshotFlow {
+            val info = gridState.layoutInfo
+            info.visibleItemsInfo.lastOrNull()?.index to info.totalItemsCount
+        }
             .distinctUntilChanged()
-            .collect { lastVisible ->
-                val total = gridState.layoutInfo.totalItemsCount
-                if (lastVisible != null && total > 0 && lastVisible >= total - 3) {
+            .collect { (lastVisible, total) ->
+                val visible = gridState.layoutInfo.visibleItemsInfo.size
+                if (lastVisible != null && total > visible && lastVisible >= total - 3) {
                     vm.loadNextPage()
                 }
             }
     }
 
     LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+        snapshotFlow {
+            val info = listState.layoutInfo
+            info.visibleItemsInfo.lastOrNull()?.index to info.totalItemsCount
+        }
             .distinctUntilChanged()
-            .collect { lastVisible ->
-                val total = listState.layoutInfo.totalItemsCount
-                if (lastVisible != null && total > 0 && lastVisible >= total - 3) {
+            .collect { (lastVisible, total) ->
+                val visible = listState.layoutInfo.visibleItemsInfo.size
+                if (lastVisible != null && total > visible && lastVisible >= total - 3) {
                     vm.loadNextPage()
                 }
             }
