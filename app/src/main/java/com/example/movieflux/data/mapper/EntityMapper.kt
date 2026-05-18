@@ -10,7 +10,7 @@ fun MovieEntity.toDomain(): MovieModel {
         overview = overview,
         posterUrl = posterUrl,
         rating = rating,
-        genreIds = emptyList(),
+        genreIds = if (genreIds.isBlank()) emptyList() else genreIds.split(",").mapNotNull { it.toIntOrNull() },
         isFavorite = true
     )
 }
@@ -21,6 +21,7 @@ fun MovieModel.toEntity(): MovieEntity {
         title = title,
         posterUrl = posterUrl,
         overview = overview,
-        rating = rating
+        rating = rating,
+        genreIds = genreIds.joinToString(",")
     )
 }

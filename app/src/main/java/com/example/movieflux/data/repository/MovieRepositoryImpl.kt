@@ -58,7 +58,13 @@ class MovieRepositoryImpl @Inject constructor(
     }
 
     override fun getFavorites(): Flow<List<MovieModel>> =
-        dao.getFavorites().map { list -> list.map { it.toDomain() } }
+        dao.getFavorites().map { list ->
+            val genres = cachedGenres ?: emptyMap()
+            list.map { entity ->
+                val domain = entity.toDomain()
+                domain.copy(genreNames = domain.genreIds.mapNotNull { genres[it] })
+            }
+        }
 
     override suspend fun toggleFavorite(movie: MovieModel) {
         if (movie.isFavorite) dao.delete(movie.toEntity())

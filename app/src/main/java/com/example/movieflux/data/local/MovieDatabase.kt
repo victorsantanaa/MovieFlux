@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [MovieEntity::class, CachedMovieEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class MovieDatabase : RoomDatabase() {

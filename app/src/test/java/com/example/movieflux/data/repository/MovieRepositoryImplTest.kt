@@ -50,7 +50,7 @@ class MovieRepositoryImplTest {
     private fun cachedEntity(id: Int, page: Int = 1) = CachedMovieEntity(
         id = id, title = "Movie $id", overview = "Overview $id",
         posterUrl = "https://image.tmdb.org/t/p/w500/poster$id.jpg",
-        rating = 7.5, genreIds = "28,12", page = page
+        rating = 7.5, genreIds = "28,12", page = page, rank = 0, genreNames = ""
     )
 
     private fun movieEntity(id: Int) = MovieEntity(
