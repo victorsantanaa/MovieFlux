@@ -5,6 +5,8 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import dagger.hilt.android.qualifiers.ApplicationContext
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,10 +18,10 @@ sealed class BiometricAvailability {
 }
 
 @Singleton
-class BiometricHelper @Inject constructor() {
+class BiometricHelper @Inject constructor(@ApplicationContext private val appContext: Context) {
 
-    fun canAuthenticate(context: Context): BiometricAvailability {
-        val manager = BiometricManager.from(context)
+    fun canAuthenticate(): BiometricAvailability {
+        val manager = BiometricManager.from(appContext)
         return when (manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
             BiometricManager.BIOMETRIC_SUCCESS -> BiometricAvailability.Available
             BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE,
@@ -43,7 +45,7 @@ class BiometricHelper @Inject constructor() {
                 onError(errString.toString())
             }
             override fun onAuthenticationFailed() {
-                onError("Authentication failed")
+                Timber.d("Biometric attempt failed (transient)")
             }
         }
         val prompt = BiometricPrompt(activity, executor, callback)

@@ -3,4 +3,15 @@
     <string name="tab_home">Home</string>
     <string name="tab_favorites">Favorites</string>
     <string name="tab_profile">Profile</string>
+    <string name="error_toggle_favorite">Couldn\'t update favorite. Please try again.</string>
+    <string name="empty_no_popular">No popular movies right now. Pull to refresh.</string>
+    <string name="empty_no_results_for">No results for &quot;%1$s&quot;.</string>
+    <string name="pagination_error_retry">Couldn\'t load more. Tap to retry.</string>
+    <string name="biometric_opt_in_title">Enable biometric login?</string>
+    <string name="biometric_opt_in_message">Use your fingerprint or face to sign in faster next time.</string>
+    <string name="biometric_opt_in_enable">Enable</string>
+    <string name="biometric_opt_in_skip">Skip</string>
+    <string name="biometric_failed_title">Biometric login failed</string>
+    <string name="biometric_use_password">Use password instead</string>
+    <string name="biometric_retry">Try again</string>
 </resources>

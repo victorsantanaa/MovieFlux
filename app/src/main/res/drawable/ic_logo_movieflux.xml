@@ -1,0 +1,61 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Film strip background rectangle -->
+    <path
+        android:fillColor="#00897B"
+        android:pathData="M10,20 L110,20 L110,100 L10,100 Z" />
+
+    <!-- Film strip holes - top row -->
+    <path
+        android:fillColor="#121212"
+        android:pathData="M15,22 L25,22 L25,30 L15,30 Z" />
+    <path
+        android:fillColor="#121212"
+        android:pathData="M35,22 L45,22 L45,30 L35,30 Z" />
+    <path
+        android:fillColor="#121212"
+        android:pathData="M55,22 L65,22 L65,30 L55,30 Z" />
+    <path
+        android:fillColor="#121212"
+        android:pathData="M75,22 L85,22 L85,30 L75,30 Z" />
+    <path
+        android:fillColor="#121212"
+        android:pathData="M95,22 L105,22 L105,30 L95,30 Z" />
+
+    <!-- Film strip holes - bottom row -->
+    <path
+        android:fillColor="#121212"
+        android:pathData="M15,90 L25,90 L25,98 L15,98 Z" />
+    <path
+        android:fillColor="#121212"
+        android:pathData="M35,90 L45,90 L45,98 L35,98 Z" />
+    <path
+        android:fillColor="#121212"
+        android:pathData="M55,90 L65,90 L65,98 L55,98 Z" />
+    <path
+        android:fillColor="#121212"
+        android:pathData="M75,90 L85,90 L85,98 L75,98 Z" />
+    <path
+        android:fillColor="#121212"
+        android:pathData="M95,90 L105,90 L105,98 L95,98 Z" />
+
+    <!-- M letterform - left half (lighter teal) -->
+    <path
+        android:fillColor="#4DB6AC"
+        android:pathData="M20,35 L35,35 L50,65 L50,85 L35,85 L35,65 L27,50 L20,35 Z" />
+
+    <!-- M letterform - right half (darker teal) -->
+    <path
+        android:fillColor="#00897B"
+        android:pathData="M100,35 L85,35 L70,65 L70,85 L85,85 L85,65 L93,50 L100,35 Z" />
+
+    <!-- M letterform - center peak -->
+    <path
+        android:fillColor="#4DB6AC"
+        android:pathData="M35,35 L50,35 L60,55 L70,35 L85,35 L60,75 Z" />
+
+</vector>
