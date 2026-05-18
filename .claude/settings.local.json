@@ -18,7 +18,24 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(gradlew.bat :app:compileDebugKotlin)",
-      "Bash(Test-Path *)"
+      "Bash(Test-Path *)",
+      "Bash(./gradlew :app:compileDebugKotlin)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\Victor\\\\AndroidStudioProjects\\\\MovieFlux\\\\config\\\\detekt\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Output \"done\")",
+      "Bash(./gradlew detektBaseline --no-daemon)",
+      "Bash(./gradlew detekt *)",
+      "Bash(./gradlew testDebugUnitTest --tests \"com.example.movieflux.architecture.KonsistArchitectureTest\" --no-daemon)",
+      "Bash(./gradlew testDebugUnitTest --tests \"com.example.movieflux.architecture.KonsistArchitectureTest\" --no-daemon --info)",
+      "Bash(./gradlew testDebugUnitTest --tests \"com.example.movieflux.architecture.KonsistArchitectureTest\" --no-daemon --rerun-tasks)",
+      "Bash(./gradlew testDebugUnitTest --no-daemon --rerun-tasks)",
+      "Bash(grep -v \"^To honour\\\\|^Daemon\\\\|^Consider\\\\|^WARNING\\\\|^Deprecated\\\\|^You can\\\\|^For more\\\\|^\\\\[Incubating\\\\]\\\\|^$\")",
+      "Bash(gradlew.bat detekt *)",
+      "PowerShell(.\\\\gradlew.bat detekt --no-daemon 2>&1 | Select-Object -Last 60)",
+      "PowerShell(.\\\\gradlew.bat detekt --no-daemon 2>&1 | Select-Object -Last 20)",
+      "PowerShell(.\\\\gradlew.bat testDebugUnitTest --no-daemon 2>&1 | Select-Object -Last 25)",
+      "PowerShell(.\\\\gradlew.bat testDebugUnitTest --no-daemon 2>&1 | Select-Object -Last 15)",
+      "PowerShell(.\\\\gradlew.bat codeQuality --no-daemon 2>&1 | Select-Object -Last 15)"
     ]
   }
 }

@@ -112,6 +112,46 @@ A autenticação é **intencionalmente mockada** (`admin/1234`), conforme defini
 
 ---
 
+## Qualidade de Código
+
+### Detekt — Análise estática Kotlin
+
+```bash
+gradlew detekt
+```
+
+Relatório gerado em `app/build/reports/detekt/detekt.html` (HTML para leitura humana) e `detekt.xml` (para integrações CI). A configuração de regras está em `config/detekt/detekt.yml`; o baseline de findings pré-existentes está em `config/detekt/baseline.xml`. Para regenerar o baseline após uma limpeza deliberada:
+
+```bash
+gradlew detektBaseline
+```
+
+### JaCoCo — Cobertura de testes unitários
+
+```bash
+gradlew jacocoTestReport
+```
+
+A task já depende de `testDebugUnitTest`. O relatório é gerado em `app/build/reports/jacoco/jacocoTestReport/html/index.html` e `.../jacocoTestReport.xml`. Os pacotes `di/`, `navigation/`, `ui/theme/`, `MainActivity` e `MovieFluxApp` são excluídos da cobertura — são shells de framework sem lógica testável por testes unitários.
+
+### Konsist — Regras de arquitetura como testes JUnit
+
+```bash
+gradlew testDebugUnitTest --tests "*KonsistArchitectureTest"
+```
+
+Cada regra arquitetural documentada no `CLAUDE.md` é aplicada como um teste JUnit independente (`KonsistArchitectureTest`). O Konsist não tem baseline — qualquer violação quebra o build imediatamente. Se uma regra estiver errada, altere o teste; não adicione supressões.
+
+### Atalho para CI
+
+```bash
+gradlew codeQuality
+```
+
+Roda Detekt, JaCoCo (que inclui os testes unitários) e os testes Konsist em sequência.
+
+---
+
 ## Uso de IA
 
 Este projeto utilizou **Claude Code (Anthropic)** como ferramenta de assistência ao desenvolvimento:
