@@ -35,22 +35,24 @@ class MovieRepositoryImpl @Inject constructor(
         try {
             val genres = getGenres()
             val remote = api.getPopular(page)
-            val entities = remote.results.map { it.toCacheEntity(page) }
+            val entities = remote.results.mapIndexed { index, dto ->
+                dto.toCacheEntity(
+                    page = page,
+                    rank = index,
+                    genreNames = dto.genre_ids.mapNotNull { genres[it] }
+                )
+            }
 
             // 3. Persist to DB (source of truth)
             dao.upsertCache(entities)
 
-            // 4. Emit fresh data only if it differs from cache
+            // 4. Emit only when the page content actually changed
             val remoteIds = entities.map { it.id }
             val cachedIds = cached.map { it.id }
             if (remoteIds != cachedIds) {
-                emit(remote.results.map { dto ->
-                    dto.toDomain(isFavorite = dto.id in favoriteIds)
-                        .copy(genreNames = dto.genre_ids.mapNotNull { genres[it] })
-                })
+                emit(entities.map { it.toDomain(isFavorite = it.id in favoriteIds) })
             }
         } catch (e: Exception) {
-            // No cache was emitted (page not yet loaded) — propagate so the UI shows an error
             if (cached.isEmpty()) throw e
         }
     }

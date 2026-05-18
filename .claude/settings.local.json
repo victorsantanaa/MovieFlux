@@ -17,7 +17,8 @@
       "Bash(.\\\\gradlew.bat assembleDebug)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(gradlew.bat :app:compileDebugKotlin)"
+      "Bash(gradlew.bat :app:compileDebugKotlin)",
+      "Bash(Test-Path *)"
     ]
   }
 }

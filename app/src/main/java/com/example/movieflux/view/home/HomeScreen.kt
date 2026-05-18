@@ -1,8 +1,11 @@
 package com.example.movieflux.view.home
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +25,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -30,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -60,6 +63,18 @@ fun HomeScreen(onMovieClick: (Int) -> Unit) {
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+
+    val wasLoading = remember { mutableStateOf(uiState is HomeUiState.Loading) }
+    LaunchedEffect(uiState) {
+        when {
+            uiState is HomeUiState.Loading -> wasLoading.value = true
+            uiState is HomeUiState.Success && wasLoading.value -> {
+                wasLoading.value = false
+                gridState.scrollToItem(0)
+                listState.scrollToItem(0)
+            }
+        }
+    }
 
     LaunchedEffect(vm.events) {
         vm.events.collect { event ->
@@ -127,122 +142,135 @@ fun HomeScreen(onMovieClick: (Int) -> Unit) {
             "view_mode" to currentViewMode.name
         )
 
-        when (val state = uiState) {
-            is HomeUiState.Loading -> LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                items(6) {
-                    MovieCardSkeleton(modifier = Modifier.fillMaxWidth())
-                }
-            }
-
-            is HomeUiState.Error -> ErrorView(
-                message = state.message,
-                onRetry = vm::loadMovies,
-                modifier = Modifier.padding(innerPadding)
-            )
-
-            is HomeUiState.Success -> {
-                if (state.movies.isEmpty()) {
-                    if (state.isQueryActive) {
-                        EmptyView(
-                            modifier = Modifier.padding(innerPadding),
-                            title = stringResource(R.string.empty_no_results_for, searchQuery),
-                            subtitle = ""
-                        )
-                    } else {
-                        EmptyView(
-                            modifier = Modifier.padding(innerPadding),
-                            title = stringResource(R.string.empty_no_popular),
-                            subtitle = ""
-                        )
+        AnimatedContent(
+            targetState = uiState,
+            contentKey = { it is HomeUiState.Loading },
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "home_content"
+        ) { state ->
+            when (state) {
+                is HomeUiState.Loading -> LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    items(6) {
+                        MovieCardSkeleton(modifier = Modifier.fillMaxWidth())
                     }
-                } else {
-                    when (state.viewMode) {
-                        ViewMode.GRID -> LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            state = gridState,
-                            contentPadding = PaddingValues(8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            items(state.movies, key = { it.id }) { movie ->
-                                MovieCard(
-                                    movie = movie,
-                                    onClick = { onMovieClick(movie.id) },
-                                    onToggleFavorite = { vm.toggleFavorite(movie) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                when {
-                                    state.isLoadingMore -> Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator()
+                }
+
+                is HomeUiState.Error -> ErrorView(
+                    message = state.message,
+                    onRetry = vm::loadMovies,
+                    modifier = Modifier.padding(innerPadding)
+                )
+
+                is HomeUiState.Success -> {
+                    if (state.movies.isEmpty()) {
+                        if (state.isQueryActive) {
+                            EmptyView(
+                                modifier = Modifier.padding(innerPadding),
+                                title = stringResource(R.string.empty_no_results_for, searchQuery),
+                                subtitle = ""
+                            )
+                        } else {
+                            EmptyView(
+                                modifier = Modifier.padding(innerPadding),
+                                title = stringResource(R.string.empty_no_popular),
+                                subtitle = ""
+                            )
+                        }
+                    } else {
+                        when (state.viewMode) {
+                            ViewMode.GRID -> LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                state = gridState,
+                                contentPadding = PaddingValues(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding)
+                            ) {
+                                items(state.movies, key = { it.id }) { movie ->
+                                    MovieCard(
+                                        movie = movie,
+                                        onClick = { onMovieClick(movie.id) },
+                                        onToggleFavorite = { vm.toggleFavorite(movie) },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                                if (state.isLoadingMore) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator()
+                                        }
                                     }
-                                    state.errorOnPage != null -> Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(8.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Button(onClick = vm::loadNextPage) {
-                                            Text(stringResource(R.string.pagination_error_retry))
+                                } else if (state.errorOnPage != null) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Button(onClick = vm::loadNextPage) {
+                                                Text(stringResource(R.string.pagination_error_retry))
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        ViewMode.LIST -> LazyColumn(
-                            state = listState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            itemsIndexed(state.movies, key = { _, m -> m.id }) { index, movie ->
-                                MovieListItem(
-                                    movie = movie,
-                                    onClick = { onMovieClick(movie.id) },
-                                    onToggleFavorite = { vm.toggleFavorite(movie) }
-                                )
-                                if (index < state.movies.lastIndex) {
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f)
+                            ViewMode.LIST -> LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding)
+                            ) {
+                                itemsIndexed(state.movies, key = { _, m -> m.id }) { index, movie ->
+                                    MovieListItem(
+                                        movie = movie,
+                                        onClick = { onMovieClick(movie.id) },
+                                        onToggleFavorite = { vm.toggleFavorite(movie) }
                                     )
-                                }
-                            }
-                            item {
-                                when {
-                                    state.isLoadingMore -> Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator()
+                                    if (index < state.movies.lastIndex) {
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f)
+                                        )
                                     }
-                                    state.errorOnPage != null -> Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(8.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Button(onClick = vm::loadNextPage) {
-                                            Text(stringResource(R.string.pagination_error_retry))
+                                }
+                                if (state.isLoadingMore) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator()
+                                        }
+                                    }
+                                } else if (state.errorOnPage != null) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Button(onClick = vm::loadNextPage) {
+                                                Text(stringResource(R.string.pagination_error_retry))
+                                            }
                                         }
                                     }
                                 }
