@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.example.movieflux.MainActivity
+import com.example.movieflux.R
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Rule
@@ -25,7 +26,7 @@ class LoginScreenTest {
     fun login_with_valid_credentials_shows_biometric_opt_in_dialog() {
         composeTestRule.onNodeWithTag("username").performTextInput("admin")
         composeTestRule.onNodeWithTag("password").performTextInput("1234")
-        composeTestRule.onNodeWithText("Done").performClick()
+        composeTestRule.onNodeWithText(composeTestRule.activity.getString(R.string.login_submit_button)).performClick()
         composeTestRule.onNodeWithText("Enable biometric login?").assertIsDisplayed()
     }
 }

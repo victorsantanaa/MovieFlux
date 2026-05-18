@@ -7,6 +7,10 @@
     <string name="empty_no_popular">No popular movies right now. Pull to refresh.</string>
     <string name="empty_no_results_for">No results for &quot;%1$s&quot;.</string>
     <string name="pagination_error_retry">Couldn\'t load more. Tap to retry.</string>
+    <string name="login_username_placeholder">Usuário</string>
+    <string name="login_password_placeholder">Senha</string>
+    <string name="login_submit_button">Entrar</string>
+    <string name="login_error_invalid_credentials">Credenciais inválidas</string>
     <string name="biometric_opt_in_title">Enable biometric login?</string>
     <string name="biometric_opt_in_message">Use your fingerprint or face to sign in faster next time.</string>
     <string name="biometric_opt_in_enable">Enable</string>

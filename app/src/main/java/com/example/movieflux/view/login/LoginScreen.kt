@@ -35,6 +35,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
+import com.example.movieflux.R
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -102,7 +104,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                placeholder = { Text("Credencial", color = TealGreenLight.copy(alpha = 0.5f)) },
+                placeholder = { Text(stringResource(R.string.login_username_placeholder), color = TealGreenLight.copy(alpha = 0.5f)) },
                 leadingIcon = {
                     Icon(Icons.Default.Person, contentDescription = null, tint = TealGreenLight)
                 },
@@ -131,7 +133,7 @@ fun LoginScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                placeholder = { Text("Senha", color = TealGreenLight.copy(alpha = 0.5f)) },
+                placeholder = { Text(stringResource(R.string.login_password_placeholder), color = TealGreenLight.copy(alpha = 0.5f)) },
                 leadingIcon = {
                     Icon(Icons.Default.Lock, contentDescription = null, tint = TealGreenLight)
                 },
@@ -185,7 +187,7 @@ fun LoginScreen(
             }
 
             PrimaryButton(
-                text = "Done",
+                text = stringResource(R.string.login_submit_button),
                 onClick = { vm.login(username, password) },
                 size = ButtonSize.LARGE,
                 enabled = username.isNotBlank() && password.isNotBlank() && uiState !is LoginUiState.Loading,
