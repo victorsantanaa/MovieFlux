@@ -52,7 +52,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Profile") }) },
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.profile_title)) }) },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(
@@ -66,15 +66,15 @@ fun ProfileScreen(onLogout: () -> Unit) {
             )
 
             Text(
-                text = "Security",
+                text = stringResource(R.string.profile_security_section),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
             SettingsSwitchRow(
                 icon = Icons.Default.Lock,
-                title = "Biometric login",
-                subtitle = "Use your fingerprint to sign in faster",
+                title = stringResource(R.string.profile_biometric_title),
+                subtitle = stringResource(R.string.profile_biometric_subtitle),
                 checked = uiState.biometricEnabled,
                 onCheckedChange = vm::setBiometricEnabled
             )
@@ -94,24 +94,24 @@ fun ProfileScreen(onLogout: () -> Unit) {
             )
 
             Text(
-                text = "About",
+                text = stringResource(R.string.profile_about_section),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
             ListItem(
-                headlineContent = { Text("Version") },
+                headlineContent = { Text(stringResource(R.string.profile_version)) },
                 trailingContent = { Text(uiState.appVersion) }
             )
             ListItem(
-                headlineContent = { Text("About MovieFlux") },
-                supportingContent = { Text("Discover and track your favourite movies.") }
+                headlineContent = { Text(stringResource(R.string.profile_about_app_title)) },
+                supportingContent = { Text(stringResource(R.string.profile_about_app_subtitle)) }
             )
 
             Spacer(modifier = Modifier.weight(1f))
 
             PrimaryButton(
-                text = "Log out",
+                text = stringResource(R.string.profile_logout),
                 onClick = vm::requestLogout,
                 size = ButtonSize.LARGE,
                 modifier = Modifier.padding(bottom = 16.dp),

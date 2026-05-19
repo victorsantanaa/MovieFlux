@@ -49,9 +49,9 @@ class DetailsViewModel @Inject constructor(
                     _uiState.value = DetailsUiState.Success(movie, movie.genreNames)
                 }
             } catch (e: IOException) {
-                _uiState.value = DetailsUiState.Error(e.message ?: "Failed to load movie details")
+                _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
             } catch (e: HttpException) {
-                _uiState.value = DetailsUiState.Error(e.message ?: "Failed to load movie details")
+                _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
             }
         }
     }
@@ -83,6 +83,6 @@ class DetailsViewModel @Inject constructor(
                 "${movie.title}\nhttps://www.themoviedb.org/movie/${movie.id}"
             )
         }
-        context.startActivity(Intent.createChooser(intent, "Share via"))
+        context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_via)))
     }
 }

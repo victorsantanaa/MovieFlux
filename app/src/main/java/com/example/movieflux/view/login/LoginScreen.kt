@@ -154,7 +154,11 @@ fun LoginScreen(
                             } else {
                                 Icons.Default.Visibility
                             },
-                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            contentDescription = if (passwordVisible) {
+                                stringResource(R.string.cd_hide_password)
+                            } else {
+                                stringResource(R.string.cd_show_password)
+                            },
                             tint = TealGreenLight
                         )
                     }

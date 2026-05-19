@@ -43,7 +43,7 @@ class LoginViewModel @Inject constructor(
             } else {
                 funnel.abandon("auth", "invalid_credentials")
                 tracker.trackError("[AUTH]", Exception("Invalid credentials"))
-                _uiState.value = LoginUiState.Error("Invalid credentials")
+                _uiState.value = LoginUiState.Error("Credenciais inválidas")
             }
         }
     }

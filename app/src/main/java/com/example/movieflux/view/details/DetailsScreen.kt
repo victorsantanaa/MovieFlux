@@ -52,12 +52,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.movieflux.R
 import com.example.movieflux.performance.JankStateEffect
 import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.ErrorView
@@ -96,12 +98,12 @@ fun DetailsScreen(
                 title = { Text("") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { vm.share(context) }) {
-                        Icon(imageVector = Icons.Default.Share, contentDescription = "Share")
+                        Icon(imageVector = Icons.Default.Share, contentDescription = stringResource(R.string.cd_share))
                     }
                 }
             )
@@ -119,7 +121,11 @@ fun DetailsScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Favorite,
-                        contentDescription = if (movie.isFavorite) "Remove from favorites" else "Add to favorites",
+                        contentDescription = if (movie.isFavorite) {
+                            stringResource(R.string.cd_remove_favorite)
+                        } else {
+                            stringResource(R.string.cd_add_favorite)
+                        },
                         tint = if (movie.isFavorite) {
                             MaterialTheme.colorScheme.onPrimary
                         } else {
@@ -280,7 +286,7 @@ private fun FullscreenImageViewer(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
+                    contentDescription = stringResource(R.string.cd_close),
                     tint = Color.White
                 )
             }

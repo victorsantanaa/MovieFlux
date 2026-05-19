@@ -5,6 +5,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.example.movieflux.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -50,9 +51,9 @@ class BiometricHelper @Inject constructor(@ApplicationContext private val appCon
         }
         val prompt = BiometricPrompt(activity, executor, callback)
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Biometric Login")
-            .setSubtitle("Use your fingerprint to sign in")
-            .setNegativeButtonText("Cancel")
+            .setTitle(activity.getString(R.string.biometric_prompt_title))
+            .setSubtitle(activity.getString(R.string.biometric_prompt_subtitle))
+            .setNegativeButtonText(activity.getString(R.string.action_cancel))
             .build()
         prompt.authenticate(info)
     }

@@ -26,9 +26,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.movieflux.R
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.performance.logDrawTime
@@ -61,7 +63,11 @@ fun MovieCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.Favorite,
-                    contentDescription = if (movie.isFavorite) "Remove from favorites" else "Add to favorites",
+                    contentDescription = if (movie.isFavorite) {
+                        stringResource(R.string.cd_remove_favorite)
+                    } else {
+                        stringResource(R.string.cd_add_favorite)
+                    },
                     tint = if (movie.isFavorite) Color.Red else Color.White.copy(alpha = 0.7f)
                 )
             }

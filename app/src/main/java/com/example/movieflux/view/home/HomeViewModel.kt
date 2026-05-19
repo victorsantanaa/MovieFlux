@@ -113,9 +113,9 @@ class HomeViewModel @Inject constructor(
                     _loadState.update { it.copy(isInitialLoading = false, errorOnPage = null) }
                 }
             } catch (e: IOException) {
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Something went wrong") }
+                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
             } catch (e: HttpException) {
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Something went wrong") }
+                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
             }
         }
     }

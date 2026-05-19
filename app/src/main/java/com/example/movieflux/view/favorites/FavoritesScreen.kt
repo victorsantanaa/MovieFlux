@@ -22,8 +22,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.movieflux.R
 import com.example.movieflux.performance.JankStateEffect
 import com.example.movieflux.performance.LogRecompositions
 import com.example.movieflux.view.components.EmptyView
@@ -69,8 +71,8 @@ fun FavoritesScreen(onMovieClick: (Int) -> Unit) {
             is FavoritesUiState.Success -> {
                 if (state.movies.isEmpty()) {
                     EmptyView(
-                        title = "No favorites yet",
-                        subtitle = "Tap the heart on any movie to add it",
+                        title = stringResource(R.string.empty_favorites_title),
+                        subtitle = stringResource(R.string.empty_favorites_subtitle),
                         modifier = Modifier.padding(innerPadding)
                     )
                 } else {
