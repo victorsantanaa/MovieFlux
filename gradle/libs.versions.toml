@@ -23,6 +23,7 @@ securityCrypto = "1.1.0-alpha06"
 biometric = "1.2.0-alpha05"
 timber = "5.0.1"
 appcompat = "1.7.0"
+coreSplashscreen = "1.0.1"
 metricsPerformance = "1.0.0-beta01"
 coroutinesTest = "1.8.1"
 mockk = "1.13.12"
@@ -80,6 +81,9 @@ androidx-biometric = { group = "androidx.biometric", name = "biometric", version
 
 # AppCompat (required for FragmentActivity / BiometricPrompt)
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+
+# Splash screen (AndroidX compat for the Android 12 SplashScreen API)
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 
 # JankStats (render-jank attribution)
 androidx-metrics-performance = { group = "androidx.metrics", name = "metrics-performance", version.ref = "metricsPerformance" }

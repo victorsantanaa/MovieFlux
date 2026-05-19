@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="#0D1B2A"/>
+
+  <!-- Film strip band -->
+  <rect x="56" y="184" width="400" height="144" fill="#162535"/>
+
+  <!-- Left sprocket holes -->
+  <rect x="72" y="200" width="28" height="22" rx="5" fill="#0D1B2A"/>
+  <rect x="72" y="245" width="28" height="22" rx="5" fill="#0D1B2A"/>
+  <rect x="72" y="290" width="28" height="22" rx="5" fill="#0D1B2A"/>
+
+  <!-- Right sprocket holes -->
+  <rect x="412" y="200" width="28" height="22" rx="5" fill="#0D1B2A"/>
+  <rect x="412" y="245" width="28" height="22" rx="5" fill="#0D1B2A"/>
+  <rect x="412" y="290" width="28" height="22" rx="5" fill="#0D1B2A"/>
+
+  <!-- Teal glow ring -->
+  <circle cx="256" cy="256" r="86" fill="none" stroke="#00BFA5" stroke-width="6" opacity="0.3"/>
+
+  <!-- Play button background -->
+  <circle cx="256" cy="256" r="78" fill="#00897B"/>
+
+  <!-- Play arrow -->
+  <polygon points="240,218 240,294 322,256" fill="#E0F2F1"/>
+
+  <!-- Flux speed lines — left -->
+  <line x1="118" y1="244" x2="152" y2="244" stroke="#00BFA5" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="110" y1="256" x2="152" y2="256" stroke="#00BFA5" stroke-width="5" stroke-linecap="round" opacity="0.75"/>
+  <line x1="118" y1="268" x2="152" y2="268" stroke="#00BFA5" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Flux speed lines — right -->
+  <line x1="360" y1="244" x2="394" y2="244" stroke="#00BFA5" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="360" y1="256" x2="402" y2="256" stroke="#00BFA5" stroke-width="5" stroke-linecap="round" opacity="0.75"/>
+  <line x1="360" y1="268" x2="394" y2="268" stroke="#00BFA5" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- "MOVIEFLUX" label -->
+  <text
+    x="256" y="420"
+    font-family="'Arial', sans-serif"
+    font-size="48"
+    font-weight="700"
+    letter-spacing="6"
+    text-anchor="middle"
+    fill="#00BFA5">MOVIEFLUX</text>
+
+  <!-- Thin accent line under text -->
+  <line x1="148" y1="432" x2="364" y2="432" stroke="#00BFA5" stroke-width="2" opacity="0.4"/>
+</svg>

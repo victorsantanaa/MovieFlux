@@ -35,7 +35,10 @@
       "PowerShell(.\\\\gradlew.bat detekt --no-daemon 2>&1 | Select-Object -Last 20)",
       "PowerShell(.\\\\gradlew.bat testDebugUnitTest --no-daemon 2>&1 | Select-Object -Last 25)",
       "PowerShell(.\\\\gradlew.bat testDebugUnitTest --no-daemon 2>&1 | Select-Object -Last 15)",
-      "PowerShell(.\\\\gradlew.bat codeQuality --no-daemon 2>&1 | Select-Object -Last 15)"
+      "PowerShell(.\\\\gradlew.bat codeQuality --no-daemon 2>&1 | Select-Object -Last 15)",
+      "PowerShell(.\\\\gradlew.bat testDebugUnitTest --no-daemon 2>&1 | Select-Object -Last 20)",
+      "Bash(./gradlew.bat :app:processDebugResources -q)",
+      "Bash(./gradlew.bat :app:processDebugResources :app:compileDebugKotlin -q)"
     ]
   }
 }
