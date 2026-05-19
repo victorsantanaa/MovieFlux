@@ -1,12 +1,12 @@
 <resources>
     <string name="app_name">MovieFlux</string>
-    <string name="tab_home">Home</string>
-    <string name="tab_favorites">Favorites</string>
-    <string name="tab_profile">Profile</string>
-    <string name="error_toggle_favorite">Couldn\'t update favorite. Please try again.</string>
-    <string name="empty_no_popular">No popular movies right now. Pull to refresh.</string>
-    <string name="empty_no_results_for">No results for &quot;%1$s&quot;.</string>
-    <string name="pagination_error_retry">Couldn\'t load more. Tap to retry.</string>
+    <string name="tab_home">Início</string>
+    <string name="tab_favorites">Favoritos</string>
+    <string name="tab_profile">Perfil</string>
+    <string name="error_toggle_favorite">Não foi possível atualizar o favorito. Tente novamente.</string>
+    <string name="empty_no_popular">Nenhum filme popular no momento. Puxe para atualizar.</string>
+    <string name="empty_no_results_for">Nenhum resultado para &quot;%1$s&quot;.</string>
+    <string name="pagination_error_retry">Não foi possível carregar mais. Toque para tentar novamente.</string>
     <string name="login_username_placeholder">Usuário</string>
     <string name="login_password_placeholder">Senha</string>
     <string name="login_submit_button">Entrar</string>
@@ -15,11 +15,11 @@
     <string name="theme_system">Sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Escuro</string>
-    <string name="biometric_opt_in_title">Enable biometric login?</string>
-    <string name="biometric_opt_in_message">Use your fingerprint or face to sign in faster next time.</string>
-    <string name="biometric_opt_in_enable">Enable</string>
-    <string name="biometric_opt_in_skip">Skip</string>
-    <string name="biometric_failed_title">Biometric login failed</string>
-    <string name="biometric_use_password">Use password instead</string>
-    <string name="biometric_retry">Try again</string>
+    <string name="biometric_opt_in_title">Ativar login por biometria?</string>
+    <string name="biometric_opt_in_message">Use sua impressão digital ou rosto para entrar mais rápido na próxima vez.</string>
+    <string name="biometric_opt_in_enable">Ativar</string>
+    <string name="biometric_opt_in_skip">Pular</string>
+    <string name="biometric_failed_title">Falha no login por biometria</string>
+    <string name="biometric_use_password">Usar senha</string>
+    <string name="biometric_retry">Tentar novamente</string>
 </resources>
