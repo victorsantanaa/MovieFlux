@@ -52,7 +52,8 @@
       "PowerShell(.\\\\gradlew.bat jacocoTestReport --console=plain 2>&1 | Select-Object -Last 25)",
       "PowerShell(Get-Content \"app\\\\build\\\\reports\\\\jacoco\\\\jacocoTestReport\\\\jacocoTestReport.xml\" -Tail 1 | ForEach-Object { $_.Substring\\([math]::Max\\(0,$_.Length-700\\)\\) })",
       "PowerShell(cmd /c dir /b /a \"app\\\\build\\\\intermediates\\\\built_in_kotlinc\\\\debug\")",
-      "PowerShell(.\\\\gradlew.bat jacocoTestReport --rerun-tasks --console=plain 2>&1 | Select-Object -Last 12)"
+      "PowerShell(.\\\\gradlew.bat jacocoTestReport --rerun-tasks --console=plain 2>&1 | Select-Object -Last 12)",
+      "Bash(./gradlew compileDebugKotlin -q)"
     ]
   }
 }

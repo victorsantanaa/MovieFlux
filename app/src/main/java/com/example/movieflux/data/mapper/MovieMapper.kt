@@ -7,10 +7,10 @@ private const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
 fun MovieDto.toDomain(isFavorite: Boolean) = MovieModel(
     id = id,
-    title = title,
-    overview = overview,
+    title = title.orEmpty(),
+    overview = overview.orEmpty(),
     posterUrl = poster_path?.let { IMAGE_BASE_URL + it } ?: "",
-    rating = vote_average,
-    genreIds = genre_ids,
+    rating = vote_average ?: 0.0,
+    genreIds = genre_ids ?: emptyList(),
     isFavorite = isFavorite
 )

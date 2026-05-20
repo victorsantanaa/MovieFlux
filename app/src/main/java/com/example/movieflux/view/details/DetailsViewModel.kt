@@ -52,6 +52,10 @@ class DetailsViewModel @Inject constructor(
                 _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
             } catch (e: HttpException) {
                 _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
+            } catch (e: Exception) {
+                // Catch-all for parse failures (e.g. malformed JSON) so they surface as an error
+                // state instead of an uncaught crash.
+                _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
             }
         }
     }

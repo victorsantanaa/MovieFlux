@@ -38,11 +38,11 @@ class MovieRepositoryImpl @Inject constructor(
         try {
             val genres = getGenres()
             val remote = api.getPopular(page)
-            val entities = remote.results.mapIndexed { index, dto ->
+            val entities = remote.results.orEmpty().mapIndexed { index, dto ->
                 dto.toCacheEntity(
                     page = page,
                     rank = index,
-                    genreNames = dto.genre_ids.mapNotNull { genres[it] }
+                    genreNames = dto.genre_ids.orEmpty().mapNotNull { genres[it] }
                 )
             }
 
@@ -82,8 +82,9 @@ class MovieRepositoryImpl @Inject constructor(
     override suspend fun getGenres(): Map<Int, String> {
         cachedGenres?.let { return it }
         return genresMutex.withLock {
-            cachedGenres ?: api.genres().genres
-                .associate { it.id to it.name }
+            cachedGenres ?: api.genres().genres.orEmpty()
+                .mapNotNull { genre -> genre.name?.let { genre.id to it } }
+                .toMap()
                 .also { cachedGenres = it }
         }
     }
@@ -94,9 +95,9 @@ class MovieRepositoryImpl @Inject constructor(
         val genres = getGenres()
         val result = api.search(query)
         emit(
-            result.results.map { dto ->
+            result.results.orEmpty().map { dto ->
                 dto.toDomain(isFavorite = dto.id in favoriteIds)
-                    .copy(genreNames = dto.genre_ids.mapNotNull { genres[it] })
+                    .copy(genreNames = dto.genre_ids.orEmpty().mapNotNull { genres[it] })
             }
         )
     }

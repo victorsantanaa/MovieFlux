@@ -9,11 +9,11 @@ private const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
 fun MovieDto.toCacheEntity(page: Int, rank: Int, genreNames: List<String>) = CachedMovieEntity(
     id = id,
-    title = title,
-    overview = overview,
+    title = title.orEmpty(),
+    overview = overview.orEmpty(),
     posterUrl = poster_path?.let { IMAGE_BASE_URL + it } ?: "",
-    rating = vote_average,
-    genreIds = genre_ids.joinToString(","),
+    rating = vote_average ?: 0.0,
+    genreIds = (genre_ids ?: emptyList()).joinToString(","),
     page = page,
     rank = rank,
     genreNames = genreNames.joinToString(",")
@@ -21,14 +21,14 @@ fun MovieDto.toCacheEntity(page: Int, rank: Int, genreNames: List<String>) = Cac
 
 fun MovieDetailDto.toCacheEntity() = CachedMovieEntity(
     id = id,
-    title = title,
-    overview = overview,
+    title = title.orEmpty(),
+    overview = overview.orEmpty(),
     posterUrl = poster_path?.let { IMAGE_BASE_URL + it } ?: "",
-    rating = vote_average,
-    genreIds = genres.joinToString(",") { it.id.toString() },
+    rating = vote_average ?: 0.0,
+    genreIds = (genres ?: emptyList()).joinToString(",") { it.id.toString() },
     page = 0,
     rank = 0,
-    genreNames = genres.joinToString(",") { it.name }
+    genreNames = (genres ?: emptyList()).mapNotNull { it.name }.joinToString(",")
 )
 
 fun CachedMovieEntity.toDomain(isFavorite: Boolean) = MovieModel(
