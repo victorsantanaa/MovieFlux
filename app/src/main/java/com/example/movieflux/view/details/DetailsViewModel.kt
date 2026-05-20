@@ -1,7 +1,5 @@
 package com.example.movieflux.view.details
 
-import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -86,16 +84,18 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
-    fun share(context: Context) {
+    fun share() {
         val current = _uiState.value as? DetailsUiState.Success ?: return
         val movie = current.movie
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(
-                Intent.EXTRA_TEXT,
-                "${movie.title}\nhttps://www.themoviedb.org/movie/${movie.id}"
+        // Building intents / starting activities belongs in the UI layer; emit the data and let the
+        // Composable construct the chooser (keeps the ViewModel free of Context — see #7).
+        viewModelScope.launch {
+            _events.send(
+                DetailsEvent.Share(
+                    title = movie.title,
+                    url = "https://www.themoviedb.org/movie/${movie.id}"
+                )
             )
         }
-        context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_via)))
     }
 }

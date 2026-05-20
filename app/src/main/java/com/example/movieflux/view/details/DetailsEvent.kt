@@ -4,4 +4,5 @@ import androidx.annotation.StringRes
 
 sealed class DetailsEvent {
     data class ShowError(@StringRes val messageRes: Int) : DetailsEvent()
+    data class Share(val title: String, val url: String) : DetailsEvent()
 }

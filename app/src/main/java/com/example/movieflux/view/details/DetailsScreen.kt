@@ -1,5 +1,6 @@
 package com.example.movieflux.view.details
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.rememberTransformableState
@@ -87,6 +88,15 @@ fun DetailsScreen(
                 is DetailsEvent.ShowError -> snackbarHostState.showSnackbar(
                     context.getString(event.messageRes)
                 )
+                is DetailsEvent.Share -> {
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, "${event.title}\n${event.url}")
+                    }
+                    context.startActivity(
+                        Intent.createChooser(sendIntent, context.getString(R.string.share_via))
+                    )
+                }
             }
         }
     }
@@ -102,7 +112,7 @@ fun DetailsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { vm.share(context) }) {
+                    IconButton(onClick = { vm.share() }) {
                         Icon(imageVector = Icons.Default.Share, contentDescription = stringResource(R.string.cd_share))
                     }
                 }
