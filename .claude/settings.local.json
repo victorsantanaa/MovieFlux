@@ -47,7 +47,12 @@
       "PowerShell(Test-Path *)",
       "PowerShell(.\\\\gradlew.bat installDebug -q 2>&1 | Select-Object -Last 30)",
       "PowerShell(.\\\\gradlew.bat :app:compileDebugKotlin -q 2>&1 | Select-Object -Last 20; \"exit=$LASTEXITCODE\")",
-      "PowerShell(.\\\\gradlew.bat installDebug -q 2>&1 | Select-Object -Last 12)"
+      "PowerShell(.\\\\gradlew.bat installDebug -q 2>&1 | Select-Object -Last 12)",
+      "PowerShell(.\\\\gradlew.bat jacocoTestReport --console=plain 2>&1 | Select-Object -Last 40)",
+      "PowerShell(.\\\\gradlew.bat jacocoTestReport --console=plain 2>&1 | Select-Object -Last 25)",
+      "PowerShell(Get-Content \"app\\\\build\\\\reports\\\\jacoco\\\\jacocoTestReport\\\\jacocoTestReport.xml\" -Tail 1 | ForEach-Object { $_.Substring\\([math]::Max\\(0,$_.Length-700\\)\\) })",
+      "PowerShell(cmd /c dir /b /a \"app\\\\build\\\\intermediates\\\\built_in_kotlinc\\\\debug\")",
+      "PowerShell(.\\\\gradlew.bat jacocoTestReport --rerun-tasks --console=plain 2>&1 | Select-Object -Last 12)"
     ]
   }
 }

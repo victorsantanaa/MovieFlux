@@ -187,10 +187,13 @@ tasks.register<JacocoReport>("jacocoTestReport") {
         "**/MovieFluxApp*.*"
     )
 
-    val kotlinClasses = fileTree("${layout.buildDirectory.get()}/tmp/kotlin-classes/debug") {
-        exclude(fileFilter)
-    }
-    classDirectories.setFrom(files(kotlinClasses))
+    // AGP 9.x emits Kotlin debug classes under built_in_kotlinc; older AGP used tmp/kotlin-classes.
+    // Include both so the report works regardless of the toolchain that produced the bytecode.
+    val classDirs = listOf(
+        "${layout.buildDirectory.get()}/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes",
+        "${layout.buildDirectory.get()}/tmp/kotlin-classes/debug"
+    ).map { fileTree(it) { exclude(fileFilter) } }
+    classDirectories.setFrom(files(classDirs))
     sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
     executionData.setFrom(
         fileTree(layout.buildDirectory.get()) {
