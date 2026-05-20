@@ -9,6 +9,7 @@ import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.domain.usecase.GetMovieDetailUseCase
 import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
+import com.example.movieflux.view.common.toUserMessageRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,15 +52,21 @@ class DetailsViewModel @Inject constructor(
                     _uiState.value = DetailsUiState.Success(movie, movie.genreNames)
                 }
             } catch (e: IOException) {
-                _uiState.value = DetailsUiState.Error(R.string.error_load_details)
+                showLoadError(e)
             } catch (e: HttpException) {
-                _uiState.value = DetailsUiState.Error(R.string.error_load_details)
+                showLoadError(e)
             } catch (e: Exception) {
                 // Catch-all for parse failures (e.g. malformed JSON) so they surface as an error
                 // state instead of an uncaught crash.
-                _uiState.value = DetailsUiState.Error(R.string.error_load_details)
+                showLoadError(e)
             }
         }
+    }
+
+    /** Logs the raw [error] and surfaces a friendly, localized message. */
+    private fun showLoadError(error: Throwable) {
+        tracker.trackError("[DETAILS] load", error)
+        _uiState.value = DetailsUiState.Error(error.toUserMessageRes())
     }
 
     fun toggleFavorite() {

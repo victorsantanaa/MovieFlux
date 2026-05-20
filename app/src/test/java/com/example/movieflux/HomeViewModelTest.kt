@@ -149,8 +149,11 @@ class HomeViewModelTest {
         viewModel.events.test {
             val event = awaitItem()
             assertTrue(event is HomeEvent.PaginationError)
+            // Friendly, localized resource — never the raw exception message (#10)
+            assertEquals(R.string.error_network, (event as HomeEvent.PaginationError).messageRes)
             cancelAndIgnoreRemainingEvents()
         }
+        verify { tracker.trackError(any(), any(), any()) }
     }
 
     @Test

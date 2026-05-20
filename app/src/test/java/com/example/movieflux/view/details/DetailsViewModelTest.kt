@@ -84,7 +84,7 @@ class DetailsViewModelTest {
         vm.uiState.test {
             val state = awaitItem()
             assertTrue(state is DetailsUiState.Error)
-            assertEquals(R.string.error_load_details, (state as DetailsUiState.Error).messageRes)
+            assertEquals(R.string.error_network, (state as DetailsUiState.Error).messageRes)
             cancelAndIgnoreRemainingEvents()
         }
     }
