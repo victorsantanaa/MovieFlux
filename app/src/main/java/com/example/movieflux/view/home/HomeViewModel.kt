@@ -9,6 +9,7 @@ import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
 import com.example.movieflux.view.components.ViewMode
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -112,9 +113,16 @@ class HomeViewModel @Inject constructor(
                     _popularMovies.value = movies
                     _loadState.update { it.copy(isInitialLoading = false, errorOnPage = null) }
                 }
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
             } catch (e: IOException) {
                 _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
             } catch (e: HttpException) {
+                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
+            } catch (e: Exception) {
+                // Catches anything else (e.g. Gson JsonSyntaxException from an unexpected body) so a
+                // parse failure surfaces as a recoverable error state instead of an uncaught crash
+                // that leaves Home stuck on the initial load.
                 _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
             }
         }
@@ -123,37 +131,27 @@ class HomeViewModel @Inject constructor(
     fun loadNextPage() {
         if (_searchQuery.value.isNotBlank() || !canLoadMore || _loadState.value.isLoadingMore) return
         _loadState.update { it.copy(isLoadingMore = true, errorOnPage = null) }
-        currentPage++
-        timber.log.Timber.tag("PAGINATION").d("loadNextPage -> requesting page=%d", currentPage)
+        // Compute the next page without mutating currentPage up front. We only commit currentPage
+        // after a page is successfully appended, so a failed load can't leave the counter ahead of
+        // what's actually loaded (no rollback needed) — the next attempt simply retries the same page.
+        val nextPage = currentPage + 1
         viewModelScope.launch {
             try {
-                useCase(currentPage).collect { newMovies ->
+                useCase(nextPage).collect { newMovies ->
                     if (newMovies.isEmpty()) {
                         canLoadMore = false
                     } else {
                         _popularMovies.update { current -> (current + newMovies).distinctBy { it.id } }
+                        currentPage = nextPage
                     }
                     _loadState.update { it.copy(isLoadingMore = false, errorOnPage = null) }
-                    timber.log.Timber.tag("PAGINATION").d("page=%d OK, total=%d", currentPage, _popularMovies.value.size)
                 }
             } catch (e: IOException) {
-                timber.log.Timber.tag("PAGINATION").e(e, "page=%d IOException class=%s msg=%s", currentPage, e::class.java.name, e.message)
-                val failedPage = currentPage
-                currentPage--
-                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = failedPage) }
+                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = nextPage) }
                 _events.trySend(HomeEvent.PaginationError(e.message))
             } catch (e: HttpException) {
-                timber.log.Timber.tag("PAGINATION").e(e, "page=%d HttpException code=%d msg=%s", currentPage, e.code(), e.message)
-                val failedPage = currentPage
-                currentPage--
-                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = failedPage) }
+                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = nextPage) }
                 _events.trySend(HomeEvent.PaginationError(e.message))
-            } catch (e: Throwable) {
-                // TEMP diagnostic: surface any other exception type (e.g. cancellation surfaced as
-                // a non-IO type, JSON parse errors) that currently propagates uncaught. Rethrow to
-                // preserve existing behavior (and cancellation semantics).
-                timber.log.Timber.tag("PAGINATION").e(e, "page=%d OTHER class=%s msg=%s", currentPage, e::class.java.name, e.message)
-                throw e
             }
         }
     }

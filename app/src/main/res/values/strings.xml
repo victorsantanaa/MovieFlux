@@ -7,6 +7,7 @@
     <string name="empty_no_popular">Nenhum filme popular no momento. Puxe para atualizar.</string>
     <string name="empty_no_results_for">Nenhum resultado para &quot;%1$s&quot;.</string>
     <string name="pagination_error_retry">Não foi possível carregar mais. Toque para tentar novamente.</string>
+    <string name="toast_pagination_error_retry">Não foi possível carregar mais.</string>
     <string name="login_username_placeholder">Usuário</string>
     <string name="login_password_placeholder">Senha</string>
     <string name="login_submit_button">Entrar</string>

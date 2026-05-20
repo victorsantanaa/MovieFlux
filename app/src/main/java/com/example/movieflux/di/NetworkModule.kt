@@ -35,7 +35,15 @@ object NetworkModule {
                 val url = original.url.newBuilder()
                     .addQueryParameter("api_key", BuildConfig.TMDB_API_KEY)
                     .build()
-                chain.proceed(original.newBuilder().url(url).build())
+                val request = original.newBuilder()
+                    .url(url)
+                    // Opt out of compression. TMDB's CDN sometimes serves cache HITs as a gzip body
+                    // *without* a `Content-Encoding: gzip` header, which OkHttp can't transparently
+                    // decompress — Gson then fails to parse the raw gzip bytes. Requesting `identity`
+                    // makes the server return plain JSON, sidestepping the broken-header case entirely.
+                    .header("Accept-Encoding", "identity")
+                    .build()
+                chain.proceed(request)
             }
             .addInterceptor(logging)
             .connectTimeout(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)

@@ -82,7 +82,7 @@ fun HomeScreen(onMovieClick: (Int) -> Unit) {
         vm.events.collect { event ->
             when (event) {
                 is HomeEvent.PaginationError -> snackbarHostState.showSnackbar(
-                    context.getString(R.string.pagination_error_retry)
+                    context.getString(R.string.toast_pagination_error_retry)
                 )
                 is HomeEvent.SearchError -> { /* silent — UI shows empty list */ }
             }
