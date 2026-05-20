@@ -64,10 +64,17 @@ class MovieRepositoryImpl @Inject constructor(
 
     override fun getFavorites(): Flow<List<MovieModel>> =
         dao.getFavorites().map { list ->
-            val genres = cachedGenres ?: emptyMap()
             list.map { entity ->
                 val domain = entity.toDomain()
-                domain.copy(genreNames = domain.genreIds.mapNotNull { genres[it] })
+                // Genre names are persisted on the favorite row (#6), so they're available even on a
+                // cold start straight into Favorites. Fall back to the in-memory genre map only for
+                // legacy rows saved before names were persisted, and only if it's already loaded.
+                if (domain.genreNames.isEmpty() && domain.genreIds.isNotEmpty()) {
+                    val genres = cachedGenres ?: emptyMap()
+                    domain.copy(genreNames = domain.genreIds.mapNotNull { genres[it] })
+                } else {
+                    domain
+                }
             }
         }
 

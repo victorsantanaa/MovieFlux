@@ -16,6 +16,7 @@ import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -274,6 +275,54 @@ class MovieRepositoryImplTest {
             assertTrue(items.first { it.id == 1 }.isFavorite)
             assertFalse(items.first { it.id == 2 }.isFavorite)
             assertEquals(listOf("Action", "Adventure"), items.first().genreNames)
+            awaitComplete()
+        }
+    }
+
+    // ── Row 14: getFavorites uses persisted genre names on cold start (#6) ────
+
+    @Test
+    fun `getFavorites uses persisted genre names without cachedGenres on cold start`() = runTest {
+        // No getPopularMovies/getGenres has run, so cachedGenres is null — the previous bug.
+        val favorite = MovieEntity(
+            id = 7,
+            title = "Movie 7",
+            posterUrl = "https://image.tmdb.org/t/p/w500/poster7.jpg",
+            overview = "Overview 7",
+            rating = 8.0,
+            genreIds = "28,12",
+            genreNames = "Action,Adventure"
+        )
+        coEvery { dao.getFavorites() } returns flowOf(listOf(favorite))
+
+        repo.getFavorites().test {
+            val items = awaitItem()
+            assertEquals(listOf("Action", "Adventure"), items.first().genreNames)
+            awaitComplete()
+        }
+    }
+
+    // ── Row 15: getFavorites falls back to genre map for legacy rows ──────────
+
+    @Test
+    fun `getFavorites falls back to cached genre map for legacy rows without persisted names`() = runTest {
+        coEvery { api.genres() } returns GenreResponse(listOf(GenreDto(28, "Action")))
+        repo.getGenres() // populate the in-memory genre map
+
+        val legacy = MovieEntity(
+            id = 9,
+            title = "Movie 9",
+            posterUrl = "url",
+            overview = "",
+            rating = 1.0,
+            genreIds = "28",
+            genreNames = "" // saved before names were persisted
+        )
+        coEvery { dao.getFavorites() } returns flowOf(listOf(legacy))
+
+        repo.getFavorites().test {
+            val items = awaitItem()
+            assertEquals(listOf("Action"), items.first().genreNames)
             awaitComplete()
         }
     }
