@@ -13,5 +13,6 @@ data class CachedMovieEntity(
     val genreIds: String,
     val page: Int,
     val rank: Int,
-    val genreNames: String
+    val genreNames: String,
+    val updatedAt: Long = 0
 )

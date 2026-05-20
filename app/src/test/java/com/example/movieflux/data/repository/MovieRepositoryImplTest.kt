@@ -243,6 +243,34 @@ class MovieRepositoryImplTest {
     }
 
     @Test
+    fun `getGenres refetches from network after the TTL expires`() = runTest {
+        var time = 0L
+        repo.clock = { time }
+        coEvery { api.genres() } returns GenreResponse(listOf(GenreDto(28, "Action")))
+
+        repo.getGenres()                     // fetch #1 at t=0
+        time = 25L * 60 * 60 * 1000          // +25h, past the 24h TTL
+        repo.getGenres()                     // cache expired → fetch #2
+
+        coVerify(exactly = 2) { api.genres() }
+    }
+
+    @Test
+    fun `getPopularMovies caps the cache after upserting`() = runTest {
+        coEvery { api.genres() } returns GenreResponse(emptyList())
+        coEvery { dao.getFavoriteIds() } returns emptyList()
+        coEvery { dao.getCachedPage(1) } returns emptyList()
+        coEvery { api.getPopular(1) } returns response(1, 2)
+
+        repo.getPopularMovies(1).test {
+            awaitItem()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { dao.evictCacheBeyond(500) }
+    }
+
+    @Test
     fun `getPopularMovies populates genreNames from cached genre map`() = runTest {
         val genreResponse = GenreResponse(
             genres = listOf(GenreDto(28, "Action"), GenreDto(12, "Adventure"))

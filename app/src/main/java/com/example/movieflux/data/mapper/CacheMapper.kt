@@ -7,7 +7,7 @@ import com.example.movieflux.domain.model.MovieModel
 
 private const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
-fun MovieDto.toCacheEntity(page: Int, rank: Int, genreNames: List<String>) = CachedMovieEntity(
+fun MovieDto.toCacheEntity(page: Int, rank: Int, genreNames: List<String>, updatedAt: Long) = CachedMovieEntity(
     id = id,
     title = title.orEmpty(),
     overview = overview.orEmpty(),
@@ -16,10 +16,11 @@ fun MovieDto.toCacheEntity(page: Int, rank: Int, genreNames: List<String>) = Cac
     genreIds = (genre_ids ?: emptyList()).joinToString(","),
     page = page,
     rank = rank,
-    genreNames = genreNames.joinToString(",")
+    genreNames = genreNames.joinToString(","),
+    updatedAt = updatedAt
 )
 
-fun MovieDetailDto.toCacheEntity() = CachedMovieEntity(
+fun MovieDetailDto.toCacheEntity(updatedAt: Long) = CachedMovieEntity(
     id = id,
     title = title.orEmpty(),
     overview = overview.orEmpty(),
@@ -28,7 +29,8 @@ fun MovieDetailDto.toCacheEntity() = CachedMovieEntity(
     genreIds = (genres ?: emptyList()).joinToString(",") { it.id.toString() },
     page = 0,
     rank = 0,
-    genreNames = (genres ?: emptyList()).mapNotNull { it.name }.joinToString(",")
+    genreNames = (genres ?: emptyList()).mapNotNull { it.name }.joinToString(","),
+    updatedAt = updatedAt
 )
 
 fun CachedMovieEntity.toDomain(isFavorite: Boolean) = MovieModel(
