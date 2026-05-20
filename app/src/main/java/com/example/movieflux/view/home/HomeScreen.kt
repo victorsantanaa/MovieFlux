@@ -167,7 +167,7 @@ fun HomeScreen(onMovieClick: (Int) -> Unit) {
                 }
 
                 is HomeUiState.Error -> ErrorView(
-                    message = state.message,
+                    message = stringResource(state.messageRes),
                     onRetry = vm::loadMovies,
                     modifier = Modifier.padding(innerPadding)
                 )

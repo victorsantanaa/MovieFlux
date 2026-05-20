@@ -1,7 +1,9 @@
 package com.example.movieflux.view.home
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.domain.model.MovieModel
@@ -48,7 +50,7 @@ class HomeViewModel @Inject constructor(
     private data class LoadState(
         val isInitialLoading: Boolean = true,
         val isLoadingMore: Boolean = false,
-        val error: String? = null,
+        @StringRes val error: Int? = null,
         val errorOnPage: Int? = null
     )
 
@@ -120,14 +122,14 @@ class HomeViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e // never swallow coroutine cancellation
             } catch (e: IOException) {
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
+                _loadState.update { it.copy(isInitialLoading = false, error = R.string.error_generic) }
             } catch (e: HttpException) {
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
+                _loadState.update { it.copy(isInitialLoading = false, error = R.string.error_generic) }
             } catch (e: Exception) {
                 // Catches anything else (e.g. Gson JsonSyntaxException from an unexpected body) so a
                 // parse failure surfaces as a recoverable error state instead of an uncaught crash
                 // that leaves Home stuck on the initial load.
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
+                _loadState.update { it.copy(isInitialLoading = false, error = R.string.error_generic) }
             }
         }
     }

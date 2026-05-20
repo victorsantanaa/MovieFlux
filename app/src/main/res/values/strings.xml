@@ -4,6 +4,11 @@
     <string name="tab_favorites">Favoritos</string>
     <string name="tab_profile">Perfil</string>
     <string name="error_toggle_favorite">Não foi possível atualizar o favorito. Tente novamente.</string>
+    <string name="error_generic">Algo deu errado. Tente novamente.</string>
+    <string name="error_load_details">Não foi possível carregar os detalhes do filme.</string>
+    <string name="biometric_error_no_hardware">Nenhum hardware de biometria encontrado.</string>
+    <string name="biometric_error_none_enrolled">Nenhuma digital cadastrada. Vá em Configurações &gt; Segurança para adicionar uma.</string>
+    <string name="biometric_error_unavailable">A autenticação por biometria está indisponível.</string>
     <string name="empty_no_popular">Nenhum filme popular no momento. Puxe para atualizar.</string>
     <string name="empty_no_results_for">Nenhum resultado para &quot;%1$s&quot;.</string>
     <string name="pagination_error_retry">Não foi possível carregar mais. Toque para tentar novamente.</string>

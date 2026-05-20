@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.domain.usecase.GetMovieDetailUseCase
@@ -83,7 +84,7 @@ class DetailsViewModelTest {
         vm.uiState.test {
             val state = awaitItem()
             assertTrue(state is DetailsUiState.Error)
-            assertEquals("network dead", (state as DetailsUiState.Error).message)
+            assertEquals(R.string.error_load_details, (state as DetailsUiState.Error).messageRes)
             cancelAndIgnoreRemainingEvents()
         }
     }

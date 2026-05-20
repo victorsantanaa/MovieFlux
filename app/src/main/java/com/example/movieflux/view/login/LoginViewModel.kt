@@ -2,6 +2,7 @@ package com.example.movieflux.view.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.analytics.FunnelTracker
 import com.example.movieflux.data.biometric.BiometricAvailability
@@ -43,7 +44,7 @@ class LoginViewModel @Inject constructor(
             } else {
                 funnel.abandon("auth", "invalid_credentials")
                 tracker.trackError("[AUTH]", Exception("Invalid credentials"))
-                _uiState.value = LoginUiState.Error("Credenciais inválidas")
+                _uiState.value = LoginUiState.Error(R.string.login_error_invalid_credentials)
             }
         }
     }

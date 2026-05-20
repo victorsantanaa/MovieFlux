@@ -1,8 +1,10 @@
 package com.example.movieflux.view.profile
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.BuildConfig
+import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.biometric.BiometricAvailability
 import com.example.movieflux.data.biometric.BiometricHelper
@@ -21,7 +23,7 @@ import javax.inject.Inject
 
 sealed class ProfileUiEvent {
     object LogoutComplete : ProfileUiEvent()
-    data class BiometricUnavailable(val reason: String) : ProfileUiEvent()
+    data class BiometricUnavailable(@StringRes val messageRes: Int) : ProfileUiEvent()
 }
 
 @HiltViewModel
@@ -62,15 +64,11 @@ class ProfileViewModel @Inject constructor(
                     _uiState.update { it.copy(biometricEnabled = true) }
                 }
                 BiometricAvailability.NoHardware ->
-                    emitEvent(ProfileUiEvent.BiometricUnavailable("Nenhum hardware de biometria encontrado"))
+                    emitEvent(ProfileUiEvent.BiometricUnavailable(R.string.biometric_error_no_hardware))
                 BiometricAvailability.NoneEnrolled ->
-                    emitEvent(
-                        ProfileUiEvent.BiometricUnavailable(
-                            "Nenhuma digital cadastrada. Vá em Configurações > Segurança para adicionar uma"
-                        )
-                    )
+                    emitEvent(ProfileUiEvent.BiometricUnavailable(R.string.biometric_error_none_enrolled))
                 BiometricAvailability.Unavailable ->
-                    emitEvent(ProfileUiEvent.BiometricUnavailable("A autenticação por biometria está indisponível"))
+                    emitEvent(ProfileUiEvent.BiometricUnavailable(R.string.biometric_error_unavailable))
             }
         } else {
             authPreferences.biometricEnabled = false

@@ -26,6 +26,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,6 +46,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
     val uiState by vm.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val brand = LocalBrandColors.current
+    val context = LocalContext.current
 
     LogRecompositions("ProfileScreen")
 
@@ -52,7 +54,8 @@ fun ProfileScreen(onLogout: () -> Unit) {
         vm.events.collect { event ->
             when (event) {
                 is ProfileUiEvent.LogoutComplete -> onLogout()
-                is ProfileUiEvent.BiometricUnavailable -> snackbarHostState.showSnackbar(event.reason)
+                is ProfileUiEvent.BiometricUnavailable ->
+                    snackbarHostState.showSnackbar(context.getString(event.messageRes))
             }
         }
     }

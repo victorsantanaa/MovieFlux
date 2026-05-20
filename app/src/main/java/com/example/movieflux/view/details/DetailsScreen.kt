@@ -140,7 +140,7 @@ fun DetailsScreen(
             is DetailsUiState.Loading -> LoadingView(modifier = Modifier.padding(innerPadding))
 
             is DetailsUiState.Error -> ErrorView(
-                message = state.message,
+                message = stringResource(state.messageRes),
                 onRetry = vm::loadDetail,
                 modifier = Modifier.padding(innerPadding)
             )
