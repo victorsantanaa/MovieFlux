@@ -12,11 +12,13 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.example.movieflux.MainActivity
 import com.example.movieflux.R
+import com.example.movieflux.data.preferences.AuthPreferences
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import javax.inject.Inject
 
 /**
  * End-to-end UI test for the login flow against the real [MainActivity] graph (Hilt-wired).
@@ -35,13 +37,22 @@ class LoginScreenTest {
     @get:Rule(order = 1)
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
+    @Inject
+    lateinit var authPreferences: AuthPreferences
+
     private fun submitButtonLabel() =
         composeTestRule.activity.getString(R.string.login_submit_button)
 
     @Before
     fun setUp() {
         hiltRule.inject()
-        // Guard: these tests assume the login form is the visible start destination.
+        // The activity launches (and reads AuthPreferences) before this runs, so clear the
+        // persisted auth state and recreate the activity. This makes the test hermetic: with no
+        // persisted login or enabled biometric, MainActivity always starts at the login form,
+        // regardless of prior runs or the device's biometric enrollment.
+        authPreferences.clear()
+        composeTestRule.activityRule.scenario.recreate()
+        composeTestRule.waitForIdle()
         composeTestRule.onNodeWithTag("username").assertIsDisplayed()
     }
 

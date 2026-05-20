@@ -22,7 +22,7 @@ import com.example.movieflux.ui.theme.TealGreenLight
 fun MovieFluxLogo(modifier: Modifier = Modifier, size: Dp = 120.dp) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         Image(
-            painter = painterResource(R.mipmap.movie_flux_logo),
+            painter = painterResource(R.drawable.movie_flux_m_logo),
             contentDescription = "MovieFlux",
             modifier = Modifier.size(size)
         )
