@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.domain.model.MovieModel
-import com.example.movieflux.domain.repository.MovieRepository
+import com.example.movieflux.domain.usecase.GetFavoritesUseCase
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
+import com.example.movieflux.domain.usecase.SearchMoviesUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
 import com.example.movieflux.view.components.ViewMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -32,8 +34,10 @@ import javax.inject.Inject
 @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val useCase: GetPopularMoviesUseCase,
-    private val repository: MovieRepository,
+    private val getPopularMovies: GetPopularMoviesUseCase,
+    private val searchMovies: SearchMoviesUseCase,
+    private val getFavorites: GetFavoritesUseCase,
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val tracker: AnalyticsTracker,
     private val uiPreferences: UiPreferences
 ) : ViewModel() {
@@ -65,7 +69,7 @@ class HomeViewModel @Inject constructor(
             if (query.isBlank()) {
                 combine(_popularMovies, _loadState) { movies, state -> movies to state }
             } else {
-                repository.searchMovies(query)
+                searchMovies(query)
                     .map { results -> results to LoadState(isInitialLoading = false) }
                     .catch { e ->
                         _events.trySend(HomeEvent.SearchError(e.localizedMessage))
@@ -76,7 +80,7 @@ class HomeViewModel @Inject constructor(
 
     val uiState: StateFlow<HomeUiState> = combine(
         activeMovies,
-        repository.getFavorites(),
+        getFavorites(),
         _viewMode,
         _searchQuery
     ) { pair, favorites, viewMode, query ->
@@ -109,7 +113,7 @@ class HomeViewModel @Inject constructor(
         _loadState.value = LoadState(isInitialLoading = true)
         viewModelScope.launch {
             try {
-                useCase(currentPage).collect { movies ->
+                getPopularMovies(currentPage).collect { movies ->
                     _popularMovies.value = movies
                     _loadState.update { it.copy(isInitialLoading = false, errorOnPage = null) }
                 }
@@ -137,7 +141,7 @@ class HomeViewModel @Inject constructor(
         val nextPage = currentPage + 1
         viewModelScope.launch {
             try {
-                useCase(nextPage).collect { newMovies ->
+                getPopularMovies(nextPage).collect { newMovies ->
                     if (newMovies.isEmpty()) {
                         canLoadMore = false
                     } else {
@@ -162,7 +166,7 @@ class HomeViewModel @Inject constructor(
 
     fun toggleFavorite(movie: MovieModel) {
         tracker.trackEvent("toggle_favorite", mapOf("movie_id" to movie.id, "is_favorite" to !movie.isFavorite))
-        viewModelScope.launch { repository.toggleFavorite(movie) }
+        viewModelScope.launch { toggleFavoriteUseCase(movie) }
     }
 
     fun setViewMode(mode: ViewMode) {

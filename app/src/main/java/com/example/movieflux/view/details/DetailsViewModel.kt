@@ -7,7 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
-import com.example.movieflux.domain.repository.MovieRepository
+import com.example.movieflux.domain.usecase.GetMovieDetailUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +23,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: MovieRepository,
+    private val getMovieDetail: GetMovieDetailUseCase,
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val tracker: AnalyticsTracker
 ) : ViewModel() {
 
@@ -45,7 +47,7 @@ class DetailsViewModel @Inject constructor(
         _uiState.value = DetailsUiState.Loading
         viewModelScope.launch {
             try {
-                repository.getMovieDetail(movieId).collect { movie ->
+                getMovieDetail(movieId).collect { movie ->
                     _uiState.value = DetailsUiState.Success(movie, movie.genreNames)
                 }
             } catch (e: IOException) {
@@ -69,7 +71,7 @@ class DetailsViewModel @Inject constructor(
         )
         _uiState.value = current.copy(movie = originalMovie.copy(isFavorite = !originalMovie.isFavorite))
         viewModelScope.launch {
-            runCatching { repository.toggleFavorite(originalMovie) }
+            runCatching { toggleFavoriteUseCase(originalMovie) }
                 .onFailure {
                     _uiState.value = current
                     _events.send(DetailsEvent.ShowError(R.string.error_toggle_favorite))

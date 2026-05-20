@@ -5,7 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.domain.model.MovieModel
-import com.example.movieflux.domain.repository.MovieRepository
+import com.example.movieflux.domain.usecase.GetFavoritesUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
 import com.example.movieflux.view.components.ViewMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class FavoritesViewModel @Inject constructor(
-    private val repository: MovieRepository,
+    private val getFavorites: GetFavoritesUseCase,
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val tracker: AnalyticsTracker,
     private val uiPreferences: UiPreferences
 ) : ViewModel() {
@@ -30,7 +32,7 @@ class FavoritesViewModel @Inject constructor(
     val searchQuery: StateFlow<String> = _searchQuery
 
     val uiState: StateFlow<FavoritesUiState> = combine(
-        repository.getFavorites(),
+        getFavorites(),
         _viewMode,
         _searchQuery
     ) { movies, viewMode, query ->
@@ -44,7 +46,7 @@ class FavoritesViewModel @Inject constructor(
 
     fun toggleFavorite(movie: MovieModel) {
         tracker.trackEvent("toggle_favorite", mapOf("movie_id" to movie.id, "is_favorite" to !movie.isFavorite))
-        viewModelScope.launch { repository.toggleFavorite(movie) }
+        viewModelScope.launch { toggleFavoriteUseCase(movie) }
     }
 
     fun setSearchQuery(query: String) {

@@ -6,6 +6,8 @@ import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.domain.repository.MovieRepository
+import com.example.movieflux.domain.usecase.GetMovieDetailUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
 import com.example.movieflux.fakeMovie
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -42,7 +44,8 @@ class DetailsViewModelTest {
     private fun buildViewModel(movieId: Int = 42): DetailsViewModel =
         DetailsViewModel(
             savedStateHandle = SavedStateHandle(mapOf("movieId" to movieId)),
-            repository = repo,
+            getMovieDetail = GetMovieDetailUseCase(repo),
+            toggleFavoriteUseCase = ToggleFavoriteUseCase(repo),
             tracker = tracker
         )
 

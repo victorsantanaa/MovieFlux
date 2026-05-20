@@ -3,7 +3,10 @@ package com.example.movieflux
 import app.cash.turbine.test
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.preferences.UiPreferences
+import com.example.movieflux.domain.usecase.GetFavoritesUseCase
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
+import com.example.movieflux.domain.usecase.SearchMoviesUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
 import com.example.movieflux.view.components.ViewMode
 import com.example.movieflux.view.home.HomeEvent
 import com.example.movieflux.view.home.HomeUiState
@@ -42,7 +45,14 @@ class HomeViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo.popularMovies = listOf(fakeMovie(1), fakeMovie(2), fakeMovie(3))
-        viewModel = HomeViewModel(GetPopularMoviesUseCase(repo), repo, tracker, uiPreferences)
+        viewModel = HomeViewModel(
+            GetPopularMoviesUseCase(repo),
+            SearchMoviesUseCase(repo),
+            GetFavoritesUseCase(repo),
+            ToggleFavoriteUseCase(repo),
+            tracker,
+            uiPreferences
+        )
     }
 
     @After
@@ -216,7 +226,14 @@ class HomeViewModelTest {
     @Test
     fun `viewMode seeded from preferences`() = runTest(dispatcher) {
         every { uiPreferences.getHomeViewMode() } returns ViewMode.LIST
-        val vm = HomeViewModel(GetPopularMoviesUseCase(repo), repo, tracker, uiPreferences)
+        val vm = HomeViewModel(
+            GetPopularMoviesUseCase(repo),
+            SearchMoviesUseCase(repo),
+            GetFavoritesUseCase(repo),
+            ToggleFavoriteUseCase(repo),
+            tracker,
+            uiPreferences
+        )
         vm.uiState.test {
             val state = awaitItem() as HomeUiState.Success
             assertEquals(ViewMode.LIST, state.viewMode)
