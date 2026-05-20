@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,8 +48,10 @@ class DetailsViewModel @Inject constructor(
                 repository.getMovieDetail(movieId).collect { movie ->
                     _uiState.value = DetailsUiState.Success(movie, movie.genreNames)
                 }
-            } catch (e: Exception) {
-                _uiState.value = DetailsUiState.Error(e.message ?: "Failed to load movie details")
+            } catch (e: IOException) {
+                _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
+            } catch (e: HttpException) {
+                _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
             }
         }
     }
@@ -55,7 +59,10 @@ class DetailsViewModel @Inject constructor(
     fun toggleFavorite() {
         val current = _uiState.value as? DetailsUiState.Success ?: return
         val originalMovie = current.movie
-        tracker.trackEvent("toggle_favorite", mapOf("movie_id" to originalMovie.id, "is_favorite" to !originalMovie.isFavorite))
+        tracker.trackEvent(
+            "toggle_favorite",
+            mapOf("movie_id" to originalMovie.id, "is_favorite" to !originalMovie.isFavorite)
+        )
         _uiState.value = current.copy(movie = originalMovie.copy(isFavorite = !originalMovie.isFavorite))
         viewModelScope.launch {
             runCatching { repository.toggleFavorite(originalMovie) }
@@ -76,6 +83,6 @@ class DetailsViewModel @Inject constructor(
                 "${movie.title}\nhttps://www.themoviedb.org/movie/${movie.id}"
             )
         }
-        context.startActivity(Intent.createChooser(intent, "Share via"))
+        context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_via)))
     }
 }

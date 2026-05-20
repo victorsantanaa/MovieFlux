@@ -70,7 +70,7 @@ class LoginViewModelTest {
             assertEquals(LoginUiState.Loading, awaitItem())
             val error = awaitItem()
             assertTrue(error is LoginUiState.Error)
-            assertEquals("Invalid credentials", (error as LoginUiState.Error).message)
+            assertEquals("Credenciais inválidas", (error as LoginUiState.Error).message)
         }
     }
 
@@ -94,7 +94,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `login success with biometric available and not prompted emits Success with shouldPromptBiometric true`() = runTest {
+    fun `login success shows biometric prompt when available and not yet prompted`() = runTest {
         every { biometricHelper.canAuthenticate() } returns BiometricAvailability.Available
         every { authPreferences.biometricPrompted } returns false
 

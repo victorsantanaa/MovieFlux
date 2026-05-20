@@ -7,14 +7,16 @@ import com.example.movieflux.domain.model.MovieModel
 
 private const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
-fun MovieDto.toCacheEntity(page: Int) = CachedMovieEntity(
+fun MovieDto.toCacheEntity(page: Int, rank: Int, genreNames: List<String>) = CachedMovieEntity(
     id = id,
     title = title,
     overview = overview,
     posterUrl = poster_path?.let { IMAGE_BASE_URL + it } ?: "",
     rating = vote_average,
     genreIds = genre_ids.joinToString(","),
-    page = page
+    page = page,
+    rank = rank,
+    genreNames = genreNames.joinToString(",")
 )
 
 fun MovieDetailDto.toCacheEntity() = CachedMovieEntity(
@@ -24,7 +26,9 @@ fun MovieDetailDto.toCacheEntity() = CachedMovieEntity(
     posterUrl = poster_path?.let { IMAGE_BASE_URL + it } ?: "",
     rating = vote_average,
     genreIds = genres.joinToString(",") { it.id.toString() },
-    page = 0
+    page = 0,
+    rank = 0,
+    genreNames = genres.joinToString(",") { it.name }
 )
 
 fun CachedMovieEntity.toDomain(isFavorite: Boolean) = MovieModel(
@@ -34,5 +38,6 @@ fun CachedMovieEntity.toDomain(isFavorite: Boolean) = MovieModel(
     posterUrl = posterUrl,
     rating = rating,
     genreIds = genreIds.split(",").mapNotNull { it.trim().toIntOrNull() },
-    isFavorite = isFavorite
+    isFavorite = isFavorite,
+    genreNames = if (genreNames.isBlank()) emptyList() else genreNames.split(",")
 )

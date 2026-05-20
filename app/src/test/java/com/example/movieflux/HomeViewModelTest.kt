@@ -2,11 +2,13 @@ package com.example.movieflux
 
 import app.cash.turbine.test
 import com.example.movieflux.analytics.AnalyticsTracker
+import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
 import com.example.movieflux.view.components.ViewMode
 import com.example.movieflux.view.home.HomeEvent
 import com.example.movieflux.view.home.HomeUiState
 import com.example.movieflux.view.home.HomeViewModel
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +32,9 @@ class HomeViewModelTest {
     private val dispatcher = UnconfinedTestDispatcher()
     private val repo = FakeMovieRepository()
     private val tracker: AnalyticsTracker = mockk(relaxed = true)
+    private val uiPreferences: UiPreferences = mockk(relaxed = true) {
+        every { getHomeViewMode() } returns ViewMode.GRID
+    }
 
     private lateinit var viewModel: HomeViewModel
 
@@ -37,7 +42,7 @@ class HomeViewModelTest {
     fun setup() {
         Dispatchers.setMain(dispatcher)
         repo.popularMovies = listOf(fakeMovie(1), fakeMovie(2), fakeMovie(3))
-        viewModel = HomeViewModel(GetPopularMoviesUseCase(repo), repo, tracker)
+        viewModel = HomeViewModel(GetPopularMoviesUseCase(repo), repo, tracker, uiPreferences)
     }
 
     @After
@@ -46,9 +51,8 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `init loads movies and emits Success`() = runTest {
+    fun `init loads movies and emits Success`() = runTest(dispatcher) {
         viewModel.uiState.test {
-            awaitItem() // Loading (stateIn initial value before upstream fires)
             val state = awaitItem()
             assertTrue(state is HomeUiState.Success)
             assertEquals(3, (state as HomeUiState.Success).movies.size)
@@ -62,11 +66,10 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `network error emits Error state`() = runTest {
+    fun `network error emits Error state`() = runTest(dispatcher) {
         repo.shouldThrow = true
         viewModel.loadMovies()
         viewModel.uiState.test {
-            awaitItem() // Loading (stateIn initial value)
             val state = awaitItem()
             assertTrue(state is HomeUiState.Error)
             cancelAndIgnoreRemainingEvents()
@@ -74,7 +77,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `setViewMode updates viewMode in Success state`() = runTest {
+    fun `setViewMode updates viewMode in Success state`() = runTest(dispatcher) {
         viewModel.uiState.test {
             awaitItem() // initial Success
             viewModel.setViewMode(ViewMode.LIST)
@@ -85,7 +88,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `setViewMode does not refetch movies`() = runTest {
+    fun `setViewMode does not refetch movies`() = runTest(dispatcher) {
         val initialMovies = (viewModel.uiState.value as? HomeUiState.Success)?.movies
         viewModel.setViewMode(ViewMode.LIST)
         val afterMovies = (viewModel.uiState.value as? HomeUiState.Success)?.movies
@@ -93,12 +96,11 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `loadNextPage appends movies and deduplicates`() = runTest {
+    fun `loadNextPage appends movies and deduplicates`() = runTest(dispatcher) {
         val page2 = listOf(fakeMovie(4), fakeMovie(5), fakeMovie(1)) // id=1 is a duplicate
         repo.popularMovies = page2
         viewModel.loadNextPage()
         viewModel.uiState.test {
-            awaitItem() // Loading (stateIn initial value)
             val state = awaitItem() as? HomeUiState.Success
             // original 3 + 2 new (1 duplicate removed)
             assertEquals(5, state?.movies?.size)
@@ -107,7 +109,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `toggleFavorite calls repository`() = runTest {
+    fun `toggleFavorite calls repository`() = runTest(dispatcher) {
         val movie = fakeMovie(1)
         viewModel.toggleFavorite(movie)
         val favs = repo.getFavorites()
@@ -119,9 +121,8 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `loadNextPage on error emits PaginationError event and sets errorOnPage`() = runTest {
+    fun `loadNextPage on error emits PaginationError event and sets errorOnPage`() = runTest(dispatcher) {
         viewModel.uiState.test {
-            awaitItem() // Loading (stateIn initial value)
             awaitItem() // Success (initial load)
 
             repo.shouldThrow = true
@@ -143,16 +144,15 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `loadNextPage retry after error re-attempts the failed page`() = runTest {
+    fun `loadNextPage retry after error re-attempts the failed page`() = runTest(dispatcher) {
         viewModel.uiState.test {
-            awaitItem() // Loading
             awaitItem() // Success([1,2,3])
 
             // Fail page 2
             repo.shouldThrow = true
             viewModel.loadNextPage()
             skipItems(1) // isLoadingMore=true
-            awaitItem()  // errorOnPage=2
+            awaitItem() // errorOnPage=2
 
             // Retry succeeds
             repo.shouldThrow = false
@@ -169,11 +169,10 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `search query that throws emits SearchError and uiState shows empty list`() = runTest {
+    fun `search query that throws emits SearchError and uiState shows empty list`() = runTest(dispatcher) {
         repo.shouldThrowOnSearch = true
 
         viewModel.uiState.test {
-            awaitItem() // Loading
             awaitItem() // Success with popular movies
 
             viewModel.setSearchQuery("batman")
@@ -197,9 +196,8 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `isQueryActive toggles based on search query`() = runTest {
+    fun `isQueryActive toggles based on search query`() = runTest(dispatcher) {
         viewModel.uiState.test {
-            awaitItem() // Loading (initial)
             val noQuery = awaitItem() as HomeUiState.Success
             assertFalse(noQuery.isQueryActive)
 
@@ -213,5 +211,22 @@ class HomeViewModelTest {
 
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `viewMode seeded from preferences`() = runTest(dispatcher) {
+        every { uiPreferences.getHomeViewMode() } returns ViewMode.LIST
+        val vm = HomeViewModel(GetPopularMoviesUseCase(repo), repo, tracker, uiPreferences)
+        vm.uiState.test {
+            val state = awaitItem() as HomeUiState.Success
+            assertEquals(ViewMode.LIST, state.viewMode)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setViewMode persists through preferences`() {
+        viewModel.setViewMode(ViewMode.LIST)
+        verify(exactly = 1) { uiPreferences.setHomeViewMode(ViewMode.LIST) }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.movieflux.view.main
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -27,6 +28,10 @@ fun MainScaffold(onLogout: () -> Unit) {
     val shouldShowBottomBar = currentRoute?.startsWith("details/") == false
 
     Scaffold(
+        // Don't apply system-bar insets to the content here. Each destination has its own
+        // Scaffold/top bar that owns the status-bar region (so the teal top bar can paint behind
+        // the status bar). The BottomNavBar still applies its own navigation-bar inset.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (shouldShowBottomBar) {
                 BottomNavBar(navController = innerNavController)

@@ -12,6 +12,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.detekt)
+    id("jacoco")
 }
 
 android {
@@ -40,6 +42,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            enableUnitTestCoverage = true
         }
     }
     compileOptions {
@@ -90,12 +95,16 @@ dependencies {
     // Lifecycle / ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // Compose extras
     implementation(libs.androidx.compose.material.icons.extended)
 
     // AppCompat (FragmentActivity base for BiometricPrompt)
     implementation(libs.androidx.appcompat)
+
+    // Splash screen
+    implementation(libs.androidx.core.splashscreen)
 
     // JankStats
     implementation(libs.androidx.metrics.performance)
@@ -111,12 +120,94 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
+    testImplementation(libs.konsist)
+    detektPlugins(libs.detekt.formatting)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.hilt.android.testing)
+    // Ensure Hilt runtime classes are available in androidTest APK
+    androidTestImplementation(libs.hilt.android)
     kspAndroidTest(libs.hilt.compiler)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+// ── Detekt ────────────────────────────────────────────────────────────────────
+detekt {
+    toolVersion = libs.versions.detekt.get()
+    config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
+    baseline = file("$rootDir/config/detekt/baseline.xml")
+    buildUponDefaultConfig = true
+    parallel = true
+    autoCorrect = false
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+        sarif.required.set(false)
+        md.required.set(false)
+    }
+    jvmTarget = "17"
+}
+
+// ── JaCoCo ────────────────────────────────────────────────────────────────────
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
+}
+
+tasks.register<JacocoReport>("jacocoTestReport") {
+    dependsOn("testDebugUnitTest")
+    group = "verification"
+    description = "Generates JaCoCo coverage report for the debug unit tests."
+
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+        csv.required.set(false)
+    }
+
+    val fileFilter = listOf(
+        "**/R.class",
+        "**/R$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*_Factory*.*",
+        "**/*_HiltModules*.*",
+        "**/Hilt_*.*",
+        "**/*Module*.*",
+        "**/di/**",
+        "**/ui/theme/**",
+        "**/navigation/**",
+        "**/view/**/*Preview*.*",
+        "**/MainActivity*.*",
+        "**/MovieFluxApp*.*"
+    )
+
+    // AGP 9.x emits Kotlin debug classes under built_in_kotlinc; older AGP used tmp/kotlin-classes.
+    // Include both so the report works regardless of the toolchain that produced the bytecode.
+    val classDirs = listOf(
+        "${layout.buildDirectory.get()}/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes",
+        "${layout.buildDirectory.get()}/tmp/kotlin-classes/debug"
+    ).map { fileTree(it) { exclude(fileFilter) } }
+    classDirectories.setFrom(files(classDirs))
+    sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory.get()) {
+            include(
+                "jacoco/testDebugUnitTest.exec",
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+            )
+        }
+    )
+}
+
+// ── Code-quality aggregate ────────────────────────────────────────────────────
+tasks.register("codeQuality") {
+    group = "verification"
+    description = "Runs Detekt, the JaCoCo coverage report, and the Konsist architecture tests."
+    dependsOn("detekt", "jacocoTestReport", "testDebugUnitTest")
 }

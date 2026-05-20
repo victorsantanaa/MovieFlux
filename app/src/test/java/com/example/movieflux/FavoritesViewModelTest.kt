@@ -2,9 +2,11 @@ package com.example.movieflux
 
 import app.cash.turbine.test
 import com.example.movieflux.analytics.AnalyticsTracker
+import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.view.components.ViewMode
 import com.example.movieflux.view.favorites.FavoritesUiState
 import com.example.movieflux.view.favorites.FavoritesViewModel
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
@@ -27,13 +29,16 @@ class FavoritesViewModelTest {
     private val dispatcher = UnconfinedTestDispatcher()
     private val repo = FakeMovieRepository()
     private val tracker: AnalyticsTracker = mockk(relaxed = true)
+    private val uiPreferences: UiPreferences = mockk(relaxed = true) {
+        every { getFavoritesViewMode() } returns ViewMode.GRID
+    }
 
     private lateinit var viewModel: FavoritesViewModel
 
     @Before
     fun setup() {
         Dispatchers.setMain(dispatcher)
-        viewModel = FavoritesViewModel(repo, tracker)
+        viewModel = FavoritesViewModel(repo, tracker, uiPreferences)
     }
 
     @After
@@ -95,5 +100,23 @@ class FavoritesViewModelTest {
             assertTrue(after.movies.none { it.id == 1 })
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `viewMode seeded from preferences favorites`() = runTest(dispatcher) {
+        every { uiPreferences.getFavoritesViewMode() } returns ViewMode.LIST
+        val vm = FavoritesViewModel(repo, tracker, uiPreferences)
+        vm.uiState.test {
+            val state = awaitItem() as FavoritesUiState.Success
+            assertEquals(ViewMode.LIST, state.viewMode)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `setViewMode persists to favorites key only`() {
+        viewModel.setViewMode(ViewMode.LIST)
+        verify(exactly = 1) { uiPreferences.setFavoritesViewMode(ViewMode.LIST) }
+        verify(exactly = 0) { uiPreferences.setHomeViewMode(any()) }
     }
 }

@@ -1,3 +1,5 @@
+@file:Suppress("MatchingDeclarationName")
+
 package com.example.movieflux.view.components
 
 import androidx.compose.foundation.layout.Column

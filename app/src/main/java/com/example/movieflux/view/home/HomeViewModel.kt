@@ -3,11 +3,13 @@ package com.example.movieflux.view.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.analytics.AnalyticsTracker
+import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
 import com.example.movieflux.view.components.ViewMode
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +25,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 
 @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -30,7 +34,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val useCase: GetPopularMoviesUseCase,
     private val repository: MovieRepository,
-    private val tracker: AnalyticsTracker
+    private val tracker: AnalyticsTracker,
+    private val uiPreferences: UiPreferences
 ) : ViewModel() {
 
     private var currentPage = 1
@@ -48,13 +53,13 @@ class HomeViewModel @Inject constructor(
 
     private val _popularMovies = MutableStateFlow<List<MovieModel>>(emptyList())
     private val _loadState = MutableStateFlow(LoadState())
-    private val _viewMode = MutableStateFlow(ViewMode.GRID)
+    private val _viewMode = MutableStateFlow(uiPreferences.getHomeViewMode())
 
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
     private val activeMovies: Flow<Pair<List<MovieModel>, LoadState>> = _searchQuery
-        .debounce(300L)
+        .debounce { if (it.isBlank()) 0L else 300L }
         .distinctUntilChanged()
         .flatMapLatest { query ->
             if (query.isBlank()) {
@@ -78,7 +83,7 @@ class HomeViewModel @Inject constructor(
         val (movies, loadState) = pair
         when {
             loadState.error != null -> HomeUiState.Error(loadState.error)
-            loadState.isInitialLoading -> HomeUiState.Loading
+            loadState.isInitialLoading && movies.isEmpty() -> HomeUiState.Loading
             else -> {
                 val favoriteIds = favorites.map { it.id }.toSet()
                 HomeUiState.Success(
@@ -108,8 +113,17 @@ class HomeViewModel @Inject constructor(
                     _popularMovies.value = movies
                     _loadState.update { it.copy(isInitialLoading = false, errorOnPage = null) }
                 }
+            } catch (e: CancellationException) {
+                throw e // never swallow coroutine cancellation
+            } catch (e: IOException) {
+                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
+            } catch (e: HttpException) {
+                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
             } catch (e: Exception) {
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Something went wrong") }
+                // Catches anything else (e.g. Gson JsonSyntaxException from an unexpected body) so a
+                // parse failure surfaces as a recoverable error state instead of an uncaught crash
+                // that leaves Home stuck on the initial load.
+                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
             }
         }
     }
@@ -117,18 +131,26 @@ class HomeViewModel @Inject constructor(
     fun loadNextPage() {
         if (_searchQuery.value.isNotBlank() || !canLoadMore || _loadState.value.isLoadingMore) return
         _loadState.update { it.copy(isLoadingMore = true, errorOnPage = null) }
-        currentPage++
+        // Compute the next page without mutating currentPage up front. We only commit currentPage
+        // after a page is successfully appended, so a failed load can't leave the counter ahead of
+        // what's actually loaded (no rollback needed) — the next attempt simply retries the same page.
+        val nextPage = currentPage + 1
         viewModelScope.launch {
             try {
-                useCase(currentPage).collect { newMovies ->
-                    if (newMovies.isEmpty()) canLoadMore = false
-                    else _popularMovies.update { current -> (current + newMovies).distinctBy { it.id } }
+                useCase(nextPage).collect { newMovies ->
+                    if (newMovies.isEmpty()) {
+                        canLoadMore = false
+                    } else {
+                        _popularMovies.update { current -> (current + newMovies).distinctBy { it.id } }
+                        currentPage = nextPage
+                    }
                     _loadState.update { it.copy(isLoadingMore = false, errorOnPage = null) }
                 }
-            } catch (e: Exception) {
-                val failedPage = currentPage
-                currentPage--
-                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = failedPage) }
+            } catch (e: IOException) {
+                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = nextPage) }
+                _events.trySend(HomeEvent.PaginationError(e.message))
+            } catch (e: HttpException) {
+                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = nextPage) }
                 _events.trySend(HomeEvent.PaginationError(e.message))
             }
         }
@@ -145,6 +167,7 @@ class HomeViewModel @Inject constructor(
 
     fun setViewMode(mode: ViewMode) {
         tracker.trackEvent("view_mode_changed", mapOf("screen" to "home", "mode" to mode.name))
+        uiPreferences.setHomeViewMode(mode)
         _viewMode.value = mode
     }
 }

@@ -5,6 +5,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.example.movieflux.R
 
 @Composable
 fun LogoutConfirmDialog(
@@ -13,19 +15,19 @@ fun LogoutConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Log out?") },
-        text = { Text("You will need to sign in again to access your favorites and account.") },
+        title = { Text(stringResource(R.string.logout_dialog_title)) },
+        text = { Text(stringResource(R.string.logout_dialog_message)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text(
-                    text = "Log out",
+                    text = stringResource(R.string.profile_logout),
                     color = MaterialTheme.colorScheme.error
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )

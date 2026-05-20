@@ -7,6 +7,9 @@ import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val NANOS_PER_MS_FLOAT = 1_000_000f
+private const val NANOS_PER_MS_LONG = 1_000_000L
+
 @Singleton
 class JankReporter @Inject constructor(
     private val tracker: AnalyticsTracker
@@ -14,14 +17,14 @@ class JankReporter @Inject constructor(
 
     override fun onFrame(frameData: FrameData) {
         if (!frameData.isJank) return
-        val durationMs = frameData.frameDurationUiNanos / 1_000_000f
+        val durationMs = frameData.frameDurationUiNanos / NANOS_PER_MS_FLOAT
         val states = frameData.states.joinToString { "${it.key}=${it.value}" }
         Timber.tag("[JANK]").w("frame=%.1fms states=[%s]", durationMs, states)
         val statesMap = frameData.states.associate { it.key to it.value }
         tracker.trackEvent(
             "frame_jank",
             statesMap + mapOf(
-                "duration_ms" to frameData.frameDurationUiNanos / 1_000_000L,
+                "duration_ms" to frameData.frameDurationUiNanos / NANOS_PER_MS_LONG,
                 "is_jank" to true
             )
         )

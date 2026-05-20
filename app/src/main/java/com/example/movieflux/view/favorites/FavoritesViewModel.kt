@@ -3,6 +3,7 @@ package com.example.movieflux.view.favorites
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.analytics.AnalyticsTracker
+import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.domain.repository.MovieRepository
 import com.example.movieflux.view.components.ViewMode
@@ -18,12 +19,13 @@ import javax.inject.Inject
 @HiltViewModel
 class FavoritesViewModel @Inject constructor(
     private val repository: MovieRepository,
-    private val tracker: AnalyticsTracker
+    private val tracker: AnalyticsTracker,
+    private val uiPreferences: UiPreferences
 ) : ViewModel() {
 
     init { tracker.trackScreen("favorites") }
 
-    private val _viewMode = MutableStateFlow(ViewMode.GRID)
+    private val _viewMode = MutableStateFlow(uiPreferences.getFavoritesViewMode())
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
@@ -32,8 +34,11 @@ class FavoritesViewModel @Inject constructor(
         _viewMode,
         _searchQuery
     ) { movies, viewMode, query ->
-        val filtered = if (query.isBlank()) movies
-                       else movies.filter { it.title.contains(query, ignoreCase = true) }
+        val filtered = if (query.isBlank()) {
+            movies
+        } else {
+            movies.filter { it.title.contains(query, ignoreCase = true) }
+        }
         FavoritesUiState.Success(movies = filtered, viewMode = viewMode)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FavoritesUiState.Loading)
 
@@ -48,6 +53,7 @@ class FavoritesViewModel @Inject constructor(
 
     fun setViewMode(mode: ViewMode) {
         tracker.trackEvent("view_mode_changed", mapOf("screen" to "favorites", "mode" to mode.name))
+        uiPreferences.setFavoritesViewMode(mode)
         _viewMode.value = mode
     }
 }

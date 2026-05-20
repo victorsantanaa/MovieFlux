@@ -9,5 +9,6 @@ data class MovieEntity(
     val title: String,
     val posterUrl: String,
     val overview: String = "",
-    val rating: Double = 0.0
+    val rating: Double = 0.0,
+    val genreIds: String = ""
 )

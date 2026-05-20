@@ -13,6 +13,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+private val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE favorites ADD COLUMN overview TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE favorites ADD COLUMN rating REAL NOT NULL DEFAULT 0")
+    }
+}
+
 private val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(
@@ -31,6 +38,19 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE movie_cache ADD COLUMN rank INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE movie_cache ADD COLUMN genreNames TEXT NOT NULL DEFAULT ''")
+    }
+}
+
+private val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE favorites ADD COLUMN genreIds TEXT NOT NULL DEFAULT ''")
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -39,7 +59,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): MovieDatabase =
         Room.databaseBuilder(context, MovieDatabase::class.java, "movieflux.db")
-            .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
 
     @Provides

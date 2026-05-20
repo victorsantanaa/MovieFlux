@@ -2,18 +2,22 @@ package com.example.movieflux
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.metrics.performance.JankStats
 import androidx.navigation.compose.rememberNavController
 import com.example.movieflux.data.biometric.BiometricAvailability
 import com.example.movieflux.data.biometric.BiometricHelper
 import com.example.movieflux.data.preferences.AuthPreferences
+import com.example.movieflux.data.preferences.ThemeRepository
 import com.example.movieflux.navigation.AppNavHost
 import com.example.movieflux.navigation.Screen
 import com.example.movieflux.performance.JankReporter
@@ -27,27 +31,35 @@ import javax.inject.Inject
 class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var authPreferences: AuthPreferences
+
     @Inject lateinit var biometricHelper: BiometricHelper
+
     @Inject lateinit var jankReporter: JankReporter
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    @Inject lateinit var themeRepository: ThemeRepository
 
-        val isLoggedIn = authPreferences.isLoggedIn
-        val needsBiometric = isLoggedIn &&
+    override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+        super.onCreate(savedInstanceState)
+        // Draw behind the system bars so the teal top bar / search row can paint the status-bar
+        // region. Without this the window fits system windows and statusBarsPadding() resolves to 0.
+        enableEdgeToEdge()
+
+        // Biometric is the ONLY way to skip the login screen on a relaunch. Without an enrolled,
+        // available, opted-in biometric, the user must authenticate via the login screen every time —
+        // a persisted isLoggedIn flag alone never bypasses login.
+        val needsBiometric = authPreferences.isLoggedIn &&
             authPreferences.biometricEnabled &&
             biometricHelper.canAuthenticate() == BiometricAvailability.Available
 
-        // Start at MainGraph if already logged in and no biometric required.
-        // If biometric is needed, start at AuthGraph and navigate to Main on success.
-        val startDestination = if (isLoggedIn && !needsBiometric) {
-            Screen.MainGraph.route
-        } else {
-            Screen.AuthGraph.route
-        }
+        // Always start at the login graph. When needsBiometric is true the BiometricGate overlay
+        // defers composing the NavHost and flips effectiveStart to MainGraph on a successful scan.
+        val startDestination = Screen.AuthGraph.route
 
         setContent {
-            MovieFluxTheme {
+            val themeMode by themeRepository.themeMode.collectAsStateWithLifecycle()
+
+            MovieFluxTheme(themeMode = themeMode) {
                 val rootNavController = rememberNavController()
                 var effectiveStart by remember { mutableStateOf(startDestination) }
                 var gateState by remember {
@@ -83,8 +95,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val jankStats = JankStats.createAndTrack(window, jankReporter)
-        lifecycle.addObserver(LifecycleEventObserver { _, event ->
-            jankStats.isTrackingEnabled = (event == Lifecycle.Event.ON_RESUME)
-        })
+        lifecycle.addObserver(
+            LifecycleEventObserver { _, event ->
+                jankStats.isTrackingEnabled = (event == Lifecycle.Event.ON_RESUME)
+            }
+        )
     }
 }

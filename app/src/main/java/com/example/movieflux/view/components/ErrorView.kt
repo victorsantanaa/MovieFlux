@@ -14,8 +14,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.movieflux.R
 
 @Composable
 fun ErrorView(
@@ -42,6 +44,6 @@ fun ErrorView(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(24.dp))
-        PrimaryButton(text = "Retry", onClick = onRetry)
+        PrimaryButton(text = stringResource(R.string.action_retry), onClick = onRetry)
     }
 }

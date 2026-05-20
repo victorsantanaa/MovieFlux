@@ -33,30 +33,42 @@ class MovieRepositoryImplTest {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun dto(id: Int) = MovieDto(
-        id = id, title = "Movie $id", overview = "Overview $id",
-        poster_path = "/poster$id.jpg", vote_average = 7.5, genre_ids = listOf(28, 12)
+        id = id,
+        title = "Movie $id",
+        overview = "Overview $id",
+        poster_path = "/poster$id.jpg",
+        vote_average = 7.5,
+        genre_ids = listOf(28, 12)
     )
 
     private fun detailDto(id: Int) = MovieDetailDto(
-        id = id, title = "Movie $id", overview = "Overview $id",
-        poster_path = "/poster$id.jpg", vote_average = 7.5,
+        id = id,
+        title = "Movie $id",
+        overview = "Overview $id",
+        poster_path = "/poster$id.jpg",
+        vote_average = 7.5,
         genres = listOf(GenreDto(28, "Action"))
     )
 
     private fun response(vararg ids: Int) = MovieResponse(
-        page = 1, results = ids.map { dto(it) }, total_pages = 5, total_results = 100
+        page = 1,
+        results = ids.map { dto(it) },
+        total_pages = 5,
+        total_results = 100
     )
 
     private fun cachedEntity(id: Int, page: Int = 1) = CachedMovieEntity(
         id = id, title = "Movie $id", overview = "Overview $id",
         posterUrl = "https://image.tmdb.org/t/p/w500/poster$id.jpg",
-        rating = 7.5, genreIds = "28,12", page = page
+        rating = 7.5, genreIds = "28,12", page = page, rank = 0, genreNames = ""
     )
 
     private fun movieEntity(id: Int) = MovieEntity(
-        id = id, title = "Movie $id",
+        id = id,
+        title = "Movie $id",
         posterUrl = "https://image.tmdb.org/t/p/w500/poster$id.jpg",
-        overview = "Overview $id", rating = 7.5
+        overview = "Overview $id",
+        rating = 7.5
     )
 
     // ── Row 1: network results joined with favorites ──────────────────────────
@@ -100,6 +112,7 @@ class MovieRepositoryImplTest {
 
     @Test
     fun `getPopularMovies throws when network fails and cache is empty`() = runTest {
+        coEvery { api.genres() } returns GenreResponse(emptyList())
         coEvery { dao.getFavoriteIds() } returns emptyList()
         coEvery { dao.getCachedPage(1) } returns emptyList()
         coEvery { api.getPopular(1) } throws IOException("no network")
@@ -113,6 +126,7 @@ class MovieRepositoryImplTest {
 
     @Test
     fun `getPopularMovies serves cache and completes silently when network fails`() = runTest {
+        coEvery { api.genres() } returns GenreResponse(emptyList())
         coEvery { dao.getFavoriteIds() } returns emptyList()
         coEvery { dao.getCachedPage(1) } returns listOf(cachedEntity(5))
         coEvery { api.getPopular(1) } throws IOException("no network")

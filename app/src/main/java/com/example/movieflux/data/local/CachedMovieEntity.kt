@@ -10,6 +10,8 @@ data class CachedMovieEntity(
     val overview: String,
     val posterUrl: String,
     val rating: Double,
-    val genreIds: String, // comma-separated: "28,12,35"
-    val page: Int
+    val genreIds: String,
+    val page: Int,
+    val rank: Int,
+    val genreNames: String
 )

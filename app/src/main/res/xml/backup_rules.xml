@@ -6,8 +6,8 @@
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- Keystore-backed encrypted prefs must not be backed up: the AES master key lives in the
+         Android Keystore and is device/install-specific, so a restored file can't be decrypted
+         (AEADBadTagException). -->
+    <exclude domain="sharedpref" path="auth_prefs.xml"/>
 </full-backup-content>

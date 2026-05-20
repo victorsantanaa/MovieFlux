@@ -29,7 +29,7 @@ interface MovieDao {
 
     // ── Movie cache ───────────────────────────────────────────────────────────
 
-    @Query("SELECT * FROM movie_cache WHERE page = :page ORDER BY id")
+    @Query("SELECT * FROM movie_cache WHERE page = :page ORDER BY rank")
     suspend fun getCachedPage(page: Int): List<CachedMovieEntity>
 
     @Query("SELECT * FROM movie_cache WHERE id = :id LIMIT 1")
