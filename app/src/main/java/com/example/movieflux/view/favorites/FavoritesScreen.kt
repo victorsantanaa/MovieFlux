@@ -1,5 +1,6 @@
 package com.example.movieflux.view.favorites
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -28,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.movieflux.R
 import com.example.movieflux.performance.JankStateEffect
 import com.example.movieflux.performance.LogRecompositions
+import com.example.movieflux.ui.theme.LocalBrandColors
 import com.example.movieflux.view.components.EmptyView
 import com.example.movieflux.view.components.LoadingView
 import com.example.movieflux.view.components.MovieCard
@@ -52,6 +54,7 @@ fun FavoritesScreen(onMovieClick: (Int) -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(LocalBrandColors.current.teal)
                     .statusBarsPadding()
                     .padding(end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically

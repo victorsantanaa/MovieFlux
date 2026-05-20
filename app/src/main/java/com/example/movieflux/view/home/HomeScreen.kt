@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -44,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.movieflux.R
 import com.example.movieflux.performance.JankStateEffect
 import com.example.movieflux.performance.LogRecompositions
+import com.example.movieflux.ui.theme.LocalBrandColors
 import com.example.movieflux.view.components.EmptyView
 import com.example.movieflux.view.components.ErrorView
 import com.example.movieflux.view.components.MovieCard
@@ -123,6 +125,7 @@ fun HomeScreen(onMovieClick: (Int) -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(LocalBrandColors.current.teal)
                     .statusBarsPadding()
                     .padding(end = 4.dp),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically

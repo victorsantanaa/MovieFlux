@@ -16,7 +16,7 @@
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Escuro</string>
     <string name="biometric_opt_in_title">Ativar login por biometria?</string>
-    <string name="biometric_opt_in_message">Use sua impressão digital ou rosto para entrar mais rápido na próxima vez.</string>
+    <string name="biometric_opt_in_message">Use sua impressão digital para entrar mais rápido na próxima vez.</string>
     <string name="biometric_opt_in_enable">Ativar</string>
     <string name="biometric_opt_in_skip">Pular</string>
     <string name="biometric_failed_title">Falha no login por biometria</string>

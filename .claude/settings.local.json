@@ -40,7 +40,8 @@
       "Bash(./gradlew.bat :app:processDebugResources -q)",
       "Bash(./gradlew.bat :app:processDebugResources :app:compileDebugKotlin -q)",
       "PowerShell(.\\\\gradlew.bat compileDebugAndroidTestKotlin -q)",
-      "PowerShell(.\\\\gradlew.bat connectedDebugAndroidTest \"-Pandroid.testInstrumentationRunnerArguments.class=com.example.movieflux.view.login.LoginScreenTest,com.example.movieflux.view.components.MovieCardTest\")"
+      "PowerShell(.\\\\gradlew.bat connectedDebugAndroidTest \"-Pandroid.testInstrumentationRunnerArguments.class=com.example.movieflux.view.login.LoginScreenTest,com.example.movieflux.view.components.MovieCardTest\")",
+      "PowerShell(.\\\\gradlew.bat compileDebugKotlin -q)"
     ]
   }
 }

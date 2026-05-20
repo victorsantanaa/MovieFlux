@@ -2,6 +2,7 @@ package com.example.movieflux
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.getValue
@@ -40,6 +41,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Draw behind the system bars so the teal top bar / search row can paint the status-bar
+        // region. Without this the window fits system windows and statusBarsPadding() resolves to 0.
+        enableEdgeToEdge()
 
         // Biometric is the ONLY way to skip the login screen on a relaunch. Without an enrolled,
         // available, opted-in biometric, the user must authenticate via the login screen every time —

@@ -124,6 +124,7 @@ class HomeViewModel @Inject constructor(
         if (_searchQuery.value.isNotBlank() || !canLoadMore || _loadState.value.isLoadingMore) return
         _loadState.update { it.copy(isLoadingMore = true, errorOnPage = null) }
         currentPage++
+        timber.log.Timber.tag("PAGINATION").d("loadNextPage -> requesting page=%d", currentPage)
         viewModelScope.launch {
             try {
                 useCase(currentPage).collect { newMovies ->
@@ -133,17 +134,26 @@ class HomeViewModel @Inject constructor(
                         _popularMovies.update { current -> (current + newMovies).distinctBy { it.id } }
                     }
                     _loadState.update { it.copy(isLoadingMore = false, errorOnPage = null) }
+                    timber.log.Timber.tag("PAGINATION").d("page=%d OK, total=%d", currentPage, _popularMovies.value.size)
                 }
             } catch (e: IOException) {
+                timber.log.Timber.tag("PAGINATION").e(e, "page=%d IOException class=%s msg=%s", currentPage, e::class.java.name, e.message)
                 val failedPage = currentPage
                 currentPage--
                 _loadState.update { it.copy(isLoadingMore = false, errorOnPage = failedPage) }
                 _events.trySend(HomeEvent.PaginationError(e.message))
             } catch (e: HttpException) {
+                timber.log.Timber.tag("PAGINATION").e(e, "page=%d HttpException code=%d msg=%s", currentPage, e.code(), e.message)
                 val failedPage = currentPage
                 currentPage--
                 _loadState.update { it.copy(isLoadingMore = false, errorOnPage = failedPage) }
                 _events.trySend(HomeEvent.PaginationError(e.message))
+            } catch (e: Throwable) {
+                // TEMP diagnostic: surface any other exception type (e.g. cancellation surfaced as
+                // a non-IO type, JSON parse errors) that currently propagates uncaught. Rethrow to
+                // preserve existing behavior (and cancellation semantics).
+                timber.log.Timber.tag("PAGINATION").e(e, "page=%d OTHER class=%s msg=%s", currentPage, e::class.java.name, e.message)
+                throw e
             }
         }
     }
