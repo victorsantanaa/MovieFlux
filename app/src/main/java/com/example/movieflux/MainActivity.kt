@@ -41,16 +41,16 @@ class MainActivity : AppCompatActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        val isLoggedIn = authPreferences.isLoggedIn
-        val needsBiometric = isLoggedIn &&
+        // Biometric is the ONLY way to skip the login screen on a relaunch. Without an enrolled,
+        // available, opted-in biometric, the user must authenticate via the login screen every time —
+        // a persisted isLoggedIn flag alone never bypasses login.
+        val needsBiometric = authPreferences.isLoggedIn &&
             authPreferences.biometricEnabled &&
             biometricHelper.canAuthenticate() == BiometricAvailability.Available
 
-        val startDestination = if (isLoggedIn && !needsBiometric) {
-            Screen.MainGraph.route
-        } else {
-            Screen.AuthGraph.route
-        }
+        // Always start at the login graph. When needsBiometric is true the BiometricGate overlay
+        // defers composing the NavHost and flips effectiveStart to MainGraph on a successful scan.
+        val startDestination = Screen.AuthGraph.route
 
         setContent {
             val themeMode by themeRepository.themeMode.collectAsStateWithLifecycle()
