@@ -70,7 +70,7 @@ class LoginViewModelTest {
             assertEquals(LoginUiState.Loading, awaitItem())
             val error = awaitItem()
             assertTrue(error is LoginUiState.Error)
-            assertEquals("Credenciais inválidas", (error as LoginUiState.Error).message)
+            assertEquals(R.string.login_error_invalid_credentials, (error as LoginUiState.Error).messageRes)
         }
     }
 

@@ -40,4 +40,11 @@ interface MovieDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCachedMovie(movie: CachedMovieEntity)
+
+    /** Caps the cache: deletes all but the [keep] most-recently-updated rows so it can't grow forever. */
+    @Query(
+        "DELETE FROM movie_cache WHERE id NOT IN " +
+            "(SELECT id FROM movie_cache ORDER BY updatedAt DESC, page ASC, rank ASC LIMIT :keep)"
+    )
+    suspend fun evictCacheBeyond(keep: Int)
 }

@@ -1,5 +1,6 @@
 package com.example.movieflux.view.home
 
+import androidx.annotation.StringRes
 import com.example.movieflux.domain.model.MovieModel
 import com.example.movieflux.view.components.ViewMode
 
@@ -12,5 +13,5 @@ sealed class HomeUiState {
         val isQueryActive: Boolean = false,
         val errorOnPage: Int? = null
     ) : HomeUiState()
-    data class Error(val message: String) : HomeUiState()
+    data class Error(@StringRes val messageRes: Int) : HomeUiState()
 }

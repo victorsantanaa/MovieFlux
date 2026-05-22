@@ -1,6 +1,8 @@
 package com.example.movieflux.view.home
 
+import androidx.annotation.StringRes
+
 sealed class HomeEvent {
-    data class PaginationError(val message: String?) : HomeEvent()
-    data class SearchError(val message: String?) : HomeEvent()
+    data class PaginationError(@StringRes val messageRes: Int) : HomeEvent()
+    object SearchError : HomeEvent()
 }

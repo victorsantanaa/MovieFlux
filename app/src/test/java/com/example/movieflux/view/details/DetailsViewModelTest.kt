@@ -1,21 +1,17 @@
 package com.example.movieflux.view.details
 
-import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.domain.repository.MovieRepository
+import com.example.movieflux.domain.usecase.GetMovieDetailUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
 import com.example.movieflux.fakeMovie
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkConstructor
-import io.mockk.mockkStatic
-import io.mockk.slot
-import io.mockk.unmockkConstructor
-import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,7 +38,8 @@ class DetailsViewModelTest {
     private fun buildViewModel(movieId: Int = 42): DetailsViewModel =
         DetailsViewModel(
             savedStateHandle = SavedStateHandle(mapOf("movieId" to movieId)),
-            repository = repo,
+            getMovieDetail = GetMovieDetailUseCase(repo),
+            toggleFavoriteUseCase = ToggleFavoriteUseCase(repo),
             tracker = tracker
         )
 
@@ -80,7 +77,7 @@ class DetailsViewModelTest {
         vm.uiState.test {
             val state = awaitItem()
             assertTrue(state is DetailsUiState.Error)
-            assertEquals("network dead", (state as DetailsUiState.Error).message)
+            assertEquals(R.string.error_network, (state as DetailsUiState.Error).messageRes)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -178,10 +175,10 @@ class DetailsViewModelTest {
         }
     }
 
-    // ── share — builds correct chooser intent ─────────────────────────────────
+    // ── share — emits Share event with title and TMDB URL ─────────────────────
 
     @Test
-    fun `share builds chooser intent containing movie title and TMDB URL`() = runTest {
+    fun `share emits Share event with movie title and TMDB URL`() = runTest {
         val movie = fakeMovie(42)
         coEvery { repo.getMovieDetail(42) } returns flowOf(movie)
         val vm = buildViewModel(42)
@@ -191,28 +188,26 @@ class DetailsViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        mockkConstructor(Intent::class)
-        mockkStatic(Intent::class)
-        try {
-            val textSlot = slot<String>()
-            every { anyConstructed<Intent>().setType(any()) } returns mockk(relaxed = true)
-            every {
-                anyConstructed<Intent>().putExtra(eq(Intent.EXTRA_TEXT), capture(textSlot))
-            } returns mockk(relaxed = true)
+        vm.events.test {
+            vm.share()
+            val event = awaitItem()
+            assertTrue(event is DetailsEvent.Share)
+            val share = event as DetailsEvent.Share
+            assertEquals(movie.title, share.title)
+            assertEquals("https://www.themoviedb.org/movie/42", share.url)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 
-            val chooserIntent = mockk<Intent>(relaxed = true)
-            every { Intent.createChooser(any(), any()) } returns chooserIntent
+    @Test
+    fun `share is no-op when uiState is not Success`() = runTest {
+        coEvery { repo.getMovieDetail(any()) } returns kotlinx.coroutines.flow.flow { /* hang */ }
+        val vm = buildViewModel(42)
 
-            val context = mockk<Context>(relaxed = true)
-            vm.share(context)
-
-            verify { context.startActivity(chooserIntent) }
-            assertTrue(textSlot.isCaptured)
-            assertTrue(textSlot.captured.contains(movie.title))
-            assertTrue(textSlot.captured.contains("https://www.themoviedb.org/movie/42"))
-        } finally {
-            unmockkConstructor(Intent::class)
-            unmockkStatic(Intent::class)
+        vm.events.test {
+            vm.share() // Loading → no event
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
         }
     }
 }

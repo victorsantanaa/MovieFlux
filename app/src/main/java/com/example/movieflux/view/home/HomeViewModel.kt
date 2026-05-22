@@ -1,12 +1,16 @@
 package com.example.movieflux.view.home
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.preferences.UiPreferences
 import com.example.movieflux.domain.model.MovieModel
-import com.example.movieflux.domain.repository.MovieRepository
+import com.example.movieflux.domain.usecase.GetFavoritesUseCase
 import com.example.movieflux.domain.usecase.GetPopularMoviesUseCase
+import com.example.movieflux.domain.usecase.SearchMoviesUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
+import com.example.movieflux.view.common.toUserMessageRes
 import com.example.movieflux.view.components.ViewMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -32,8 +36,10 @@ import javax.inject.Inject
 @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val useCase: GetPopularMoviesUseCase,
-    private val repository: MovieRepository,
+    private val getPopularMovies: GetPopularMoviesUseCase,
+    private val searchMovies: SearchMoviesUseCase,
+    private val getFavorites: GetFavoritesUseCase,
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val tracker: AnalyticsTracker,
     private val uiPreferences: UiPreferences
 ) : ViewModel() {
@@ -44,7 +50,7 @@ class HomeViewModel @Inject constructor(
     private data class LoadState(
         val isInitialLoading: Boolean = true,
         val isLoadingMore: Boolean = false,
-        val error: String? = null,
+        @StringRes val error: Int? = null,
         val errorOnPage: Int? = null
     )
 
@@ -65,10 +71,11 @@ class HomeViewModel @Inject constructor(
             if (query.isBlank()) {
                 combine(_popularMovies, _loadState) { movies, state -> movies to state }
             } else {
-                repository.searchMovies(query)
+                searchMovies(query)
                     .map { results -> results to LoadState(isInitialLoading = false) }
                     .catch { e ->
-                        _events.trySend(HomeEvent.SearchError(e.localizedMessage))
+                        tracker.trackError("[HOME] search", e)
+                        _events.trySend(HomeEvent.SearchError)
                         emit(emptyList<MovieModel>() to LoadState(isInitialLoading = false))
                     }
             }
@@ -76,7 +83,7 @@ class HomeViewModel @Inject constructor(
 
     val uiState: StateFlow<HomeUiState> = combine(
         activeMovies,
-        repository.getFavorites(),
+        getFavorites(),
         _viewMode,
         _searchQuery
     ) { pair, favorites, viewMode, query ->
@@ -109,21 +116,21 @@ class HomeViewModel @Inject constructor(
         _loadState.value = LoadState(isInitialLoading = true)
         viewModelScope.launch {
             try {
-                useCase(currentPage).collect { movies ->
+                getPopularMovies(currentPage).collect { movies ->
                     _popularMovies.value = movies
                     _loadState.update { it.copy(isInitialLoading = false, errorOnPage = null) }
                 }
             } catch (e: CancellationException) {
                 throw e // never swallow coroutine cancellation
             } catch (e: IOException) {
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
+                showLoadError(e)
             } catch (e: HttpException) {
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
+                showLoadError(e)
             } catch (e: Exception) {
                 // Catches anything else (e.g. Gson JsonSyntaxException from an unexpected body) so a
                 // parse failure surfaces as a recoverable error state instead of an uncaught crash
                 // that leaves Home stuck on the initial load.
-                _loadState.update { it.copy(isInitialLoading = false, error = e.message ?: "Algo deu errado") }
+                showLoadError(e)
             }
         }
     }
@@ -137,7 +144,7 @@ class HomeViewModel @Inject constructor(
         val nextPage = currentPage + 1
         viewModelScope.launch {
             try {
-                useCase(nextPage).collect { newMovies ->
+                getPopularMovies(nextPage).collect { newMovies ->
                     if (newMovies.isEmpty()) {
                         canLoadMore = false
                     } else {
@@ -147,13 +154,24 @@ class HomeViewModel @Inject constructor(
                     _loadState.update { it.copy(isLoadingMore = false, errorOnPage = null) }
                 }
             } catch (e: IOException) {
-                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = nextPage) }
-                _events.trySend(HomeEvent.PaginationError(e.message))
+                showPaginationError(e, nextPage)
             } catch (e: HttpException) {
-                _loadState.update { it.copy(isLoadingMore = false, errorOnPage = nextPage) }
-                _events.trySend(HomeEvent.PaginationError(e.message))
+                showPaginationError(e, nextPage)
             }
         }
+    }
+
+    /** Logs the raw [error] and surfaces a friendly, localized message in the load state. */
+    private fun showLoadError(error: Throwable) {
+        tracker.trackError("[HOME] load", error)
+        _loadState.update { it.copy(isInitialLoading = false, error = error.toUserMessageRes()) }
+    }
+
+    /** Logs the raw [error] and emits a friendly pagination event for the failed [page]. */
+    private fun showPaginationError(error: Throwable, page: Int) {
+        tracker.trackError("[HOME] pagination", error)
+        _loadState.update { it.copy(isLoadingMore = false, errorOnPage = page) }
+        _events.trySend(HomeEvent.PaginationError(error.toUserMessageRes()))
     }
 
     fun setSearchQuery(query: String) {
@@ -162,7 +180,7 @@ class HomeViewModel @Inject constructor(
 
     fun toggleFavorite(movie: MovieModel) {
         tracker.trackEvent("toggle_favorite", mapOf("movie_id" to movie.id, "is_favorite" to !movie.isFavorite))
-        viewModelScope.launch { repository.toggleFavorite(movie) }
+        viewModelScope.launch { toggleFavoriteUseCase(movie) }
     }
 
     fun setViewMode(mode: ViewMode) {

@@ -3,6 +3,8 @@ package com.example.movieflux
 import app.cash.turbine.test
 import com.example.movieflux.analytics.AnalyticsTracker
 import com.example.movieflux.data.preferences.UiPreferences
+import com.example.movieflux.domain.usecase.GetFavoritesUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
 import com.example.movieflux.view.components.ViewMode
 import com.example.movieflux.view.favorites.FavoritesUiState
 import com.example.movieflux.view.favorites.FavoritesViewModel
@@ -38,7 +40,12 @@ class FavoritesViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(dispatcher)
-        viewModel = FavoritesViewModel(repo, tracker, uiPreferences)
+        viewModel = FavoritesViewModel(
+            GetFavoritesUseCase(repo),
+            ToggleFavoriteUseCase(repo),
+            tracker,
+            uiPreferences
+        )
     }
 
     @After
@@ -105,7 +112,12 @@ class FavoritesViewModelTest {
     @Test
     fun `viewMode seeded from preferences favorites`() = runTest(dispatcher) {
         every { uiPreferences.getFavoritesViewMode() } returns ViewMode.LIST
-        val vm = FavoritesViewModel(repo, tracker, uiPreferences)
+        val vm = FavoritesViewModel(
+            GetFavoritesUseCase(repo),
+            ToggleFavoriteUseCase(repo),
+            tracker,
+            uiPreferences
+        )
         vm.uiState.test {
             val state = awaitItem() as FavoritesUiState.Success
             assertEquals(ViewMode.LIST, state.viewMode)

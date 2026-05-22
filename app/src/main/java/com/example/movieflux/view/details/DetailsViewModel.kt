@@ -1,13 +1,13 @@
 package com.example.movieflux.view.details
 
-import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movieflux.R
 import com.example.movieflux.analytics.AnalyticsTracker
-import com.example.movieflux.domain.repository.MovieRepository
+import com.example.movieflux.domain.usecase.GetMovieDetailUseCase
+import com.example.movieflux.domain.usecase.ToggleFavoriteUseCase
+import com.example.movieflux.view.common.toUserMessageRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: MovieRepository,
+    private val getMovieDetail: GetMovieDetailUseCase,
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val tracker: AnalyticsTracker
 ) : ViewModel() {
 
@@ -45,15 +46,25 @@ class DetailsViewModel @Inject constructor(
         _uiState.value = DetailsUiState.Loading
         viewModelScope.launch {
             try {
-                repository.getMovieDetail(movieId).collect { movie ->
+                getMovieDetail(movieId).collect { movie ->
                     _uiState.value = DetailsUiState.Success(movie, movie.genreNames)
                 }
             } catch (e: IOException) {
-                _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
+                showLoadError(e)
             } catch (e: HttpException) {
-                _uiState.value = DetailsUiState.Error(e.message ?: "Não foi possível carregar os detalhes do filme")
+                showLoadError(e)
+            } catch (e: Exception) {
+                // Catch-all for parse failures (e.g. malformed JSON) so they surface as an error
+                // state instead of an uncaught crash.
+                showLoadError(e)
             }
         }
+    }
+
+    /** Logs the raw [error] and surfaces a friendly, localized message. */
+    private fun showLoadError(error: Throwable) {
+        tracker.trackError("[DETAILS] load", error)
+        _uiState.value = DetailsUiState.Error(error.toUserMessageRes())
     }
 
     fun toggleFavorite() {
@@ -65,7 +76,7 @@ class DetailsViewModel @Inject constructor(
         )
         _uiState.value = current.copy(movie = originalMovie.copy(isFavorite = !originalMovie.isFavorite))
         viewModelScope.launch {
-            runCatching { repository.toggleFavorite(originalMovie) }
+            runCatching { toggleFavoriteUseCase(originalMovie) }
                 .onFailure {
                     _uiState.value = current
                     _events.send(DetailsEvent.ShowError(R.string.error_toggle_favorite))
@@ -73,16 +84,18 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
-    fun share(context: Context) {
+    fun share() {
         val current = _uiState.value as? DetailsUiState.Success ?: return
         val movie = current.movie
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(
-                Intent.EXTRA_TEXT,
-                "${movie.title}\nhttps://www.themoviedb.org/movie/${movie.id}"
+        // Building intents / starting activities belongs in the UI layer; emit the data and let the
+        // Composable construct the chooser (keeps the ViewModel free of Context — see #7).
+        viewModelScope.launch {
+            _events.send(
+                DetailsEvent.Share(
+                    title = movie.title,
+                    url = "https://www.themoviedb.org/movie/${movie.id}"
+                )
             )
         }
-        context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_via)))
     }
 }

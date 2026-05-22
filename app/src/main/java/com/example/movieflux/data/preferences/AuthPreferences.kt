@@ -5,15 +5,28 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.security.GeneralSecurityException
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AuthPreferences @Inject constructor(@ApplicationContext context: Context) {
+class AuthPreferences @Inject constructor(@ApplicationContext private val context: Context) {
 
-    private val prefs = createEncryptedPrefs(context)
+    // Lazy so the slow, Keystore-backed EncryptedSharedPreferences.create() doesn't run on whatever
+    // thread injects this (typically the main thread). SYNCHRONIZED mode makes the first access build
+    // it exactly once; callers should warm it off the main thread via awaitReady() at startup (#5).
+    private val prefs: SharedPreferences by lazy { createEncryptedPrefs(context) }
+
+    /**
+     * Forces [prefs] to be built off the main thread. Call once at app startup (before reading any
+     * auth flag) so the Keystore/crypto/disk work never blocks the UI thread and risks an ANR.
+     */
+    suspend fun awaitReady() {
+        withContext(Dispatchers.IO) { prefs }
+    }
 
     private fun createEncryptedPrefs(context: Context): SharedPreferences {
         val masterKey = MasterKey.Builder(context)
