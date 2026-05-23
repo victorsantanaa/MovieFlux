@@ -88,7 +88,7 @@ class DetailsViewModel @Inject constructor(
         val current = _uiState.value as? DetailsUiState.Success ?: return
         val movie = current.movie
         // Building intents / starting activities belongs in the UI layer; emit the data and let the
-        // Composable construct the chooser (keeps the ViewModel free of Context — see #7).
+        // Composable construct the chooser (keeps the ViewModel free of Context).
         viewModelScope.launch {
             _events.send(
                 DetailsEvent.Share(

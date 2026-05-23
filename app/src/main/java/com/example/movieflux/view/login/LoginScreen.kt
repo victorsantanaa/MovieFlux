@@ -99,7 +99,6 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Username field
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
@@ -133,7 +132,6 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Password field
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },

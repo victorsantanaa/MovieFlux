@@ -17,7 +17,7 @@ class AuthPreferences @Inject constructor(@ApplicationContext private val contex
 
     // Lazy so the slow, Keystore-backed EncryptedSharedPreferences.create() doesn't run on whatever
     // thread injects this (typically the main thread). SYNCHRONIZED mode makes the first access build
-    // it exactly once; callers should warm it off the main thread via awaitReady() at startup (#5).
+    // it exactly once; callers should warm it off the main thread via awaitReady() at startup.
     private val prefs: SharedPreferences by lazy { createEncryptedPrefs(context) }
 
     /**
@@ -52,7 +52,6 @@ class AuthPreferences @Inject constructor(@ApplicationContext private val contex
     ): SharedPreferences {
         @Suppress("DEPRECATION")
         if (!context.deleteSharedPreferences(PREFS_NAME)) {
-            // Fallback for very old behavior: clear in place if the file couldn't be deleted.
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().clear().apply()
         }
         return try {

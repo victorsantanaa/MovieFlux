@@ -20,12 +20,12 @@ fun LogRecompositions(name: String) {
     }
 }
 
-// Measures how long draw takes for this composable each frame.
+/** Logs draw time for [name] when it exceeds [MIN_DRAW_TIME_MS], to spot jank-prone composables. */
 fun Modifier.logDrawTime(name: String): Modifier = drawWithContent {
     val start = System.nanoTime()
     drawContent()
     val durationMs = (System.nanoTime() - start) / NANOS_PER_MS
-    if (durationMs > MIN_DRAW_TIME_MS) { // only log if draw took more than 1ms
+    if (durationMs > MIN_DRAW_TIME_MS) {
         Timber.tag("[DRAW]").d("%s — draw=%.2fms", name, durationMs)
     }
 }

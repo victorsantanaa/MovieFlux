@@ -8,7 +8,7 @@ import java.io.IOException
 /**
  * Maps a [Throwable] to a friendly, localized [StringRes] for display. The raw exception message is
  * intentionally never surfaced to the user — it's technical, untranslated, and may leak internal
- * detail; callers should log the throwable separately (see #10 in the code review).
+ * detail; callers should log the throwable separately.
  */
 @StringRes
 fun Throwable.toUserMessageRes(): Int = when (this) {
