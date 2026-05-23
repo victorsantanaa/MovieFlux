@@ -10,7 +10,7 @@ sealed class Screen(val route: String) {
     object Favorites : Screen("favorites")
     object Profile : Screen("profile")
 
-    /** Lives in [MainGraph]; the parent scaffold hides the bottom bar on this route. */
+    /** Pertence ao [MainGraph]; o scaffold pai oculta a bottom bar nesta rota. */
     object Details : Screen("details/{movieId}") {
         const val ARG_MOVIE_ID = "movieId"
         fun createRoute(movieId: Int) = "details/$movieId"

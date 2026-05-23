@@ -15,17 +15,17 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 /**
- * Brand teal accent, separate from the Material color scheme, for surfaces we want explicitly
- * teal-branded (bottom nav bar, screen title bars). [teal] flips with the active theme — the
- * darkest teal in dark mode, the lightest in light mode — and [onTeal] is the legible
- * foreground for content drawn on top of it.
+ * Accent verde-azulado de marca, separado do color scheme do Material, para superfícies que queremos
+ * explicitamente com a identidade teal (bottom nav bar, top bars das telas). [teal] alterna conforme
+ * o tema ativo — o teal mais escuro no dark mode, o mais claro no light mode — e [onTeal] é o
+ * foreground legível para conteúdo desenhado sobre ele.
  */
 data class BrandColors(val teal: Color, val onTeal: Color)
 
 private val DarkBrand = BrandColors(teal = TealGreenDark, onTeal = Color.White)
 private val LightBrand = BrandColors(teal = TealGreenLight, onTeal = Color(0xFF003731))
 
-/** Resolves to the brand colors for the active theme; provided by [MovieFluxTheme]. */
+/** Resolve para as cores de marca do tema ativo; provido por [MovieFluxTheme]. */
 val LocalBrandColors = staticCompositionLocalOf { LightBrand }
 
 private val LightColors = lightColorScheme(
@@ -57,8 +57,9 @@ fun MovieFluxTheme(
     val colors = if (darkTheme) DarkColors else LightColors
     val brandColors = if (darkTheme) DarkBrand else LightBrand
 
-    // The status bar sits over the teal top bar / search row. Match its icon tint to the brand
-    // foreground: dark icons over the light-mode teal, light icons over the dark-mode teal.
+    // A status bar fica sobre a top bar verde-azulada / linha de busca. Combine o tint dos ícones
+    // com o foreground da marca: ícones escuros sobre o teal do light mode, ícones claros sobre o
+    // teal do dark mode.
     val view = LocalView.current
     if (!view.isInEditMode) {
         (view.context as? Activity)?.window?.let { window ->

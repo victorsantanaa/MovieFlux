@@ -15,14 +15,16 @@ import javax.inject.Singleton
 @Singleton
 class AuthPreferences @Inject constructor(@ApplicationContext private val context: Context) {
 
-    // Lazy so the slow, Keystore-backed EncryptedSharedPreferences.create() doesn't run on whatever
-    // thread injects this (typically the main thread). SYNCHRONIZED mode makes the first access build
-    // it exactly once; callers should warm it off the main thread via awaitReady() at startup.
+    // Lazy para que o lento EncryptedSharedPreferences.create() (apoiado pelo Keystore) não rode na
+    // thread que faz a injeção (tipicamente a main thread). O modo SYNCHRONIZED garante que o primeiro
+    // acesso o construa exatamente uma vez; os chamadores devem aquecê-lo fora da main thread via
+    // awaitReady() no startup.
     private val prefs: SharedPreferences by lazy { createEncryptedPrefs(context) }
 
     /**
-     * Forces [prefs] to be built off the main thread. Call once at app startup (before reading any
-     * auth flag) so the Keystore/crypto/disk work never blocks the UI thread and risks an ANR.
+     * Força [prefs] a ser construído fora da main thread. Chame uma vez no startup do app (antes de
+     * ler qualquer flag de auth) para que o trabalho de Keystore/cripto/disco nunca bloqueie a UI
+     * thread nem corra risco de ANR.
      */
     suspend fun awaitReady() {
         withContext(Dispatchers.IO) { prefs }
@@ -35,10 +37,10 @@ class AuthPreferences @Inject constructor(@ApplicationContext private val contex
         return try {
             buildPrefs(context, masterKey)
         } catch (e: GeneralSecurityException) {
-            // The Keystore master key no longer matches the stored keyset (e.g. backup/restore to a
-            // new install, or a Keystore reset) → AEADBadTagException. The encrypted data is
-            // unrecoverable, so wipe the corrupt file and recreate a fresh keyset rather than
-            // crashing at startup. The user is simply logged out once.
+            // A master key do Keystore não casa mais com o keyset armazenado (ex.: backup/restore
+            // para uma nova instalação, ou reset do Keystore) → AEADBadTagException. Os dados
+            // criptografados são irrecuperáveis, então apagamos o arquivo corrompido e recriamos um
+            // keyset novo em vez de quebrar no startup. O usuário simplesmente é deslogado uma vez.
             recreateAfterCorruption(context, masterKey, e)
         } catch (e: IOException) {
             recreateAfterCorruption(context, masterKey, e)

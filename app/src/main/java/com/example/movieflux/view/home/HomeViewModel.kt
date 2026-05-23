@@ -121,15 +121,15 @@ class HomeViewModel @Inject constructor(
                     _loadState.update { it.copy(isInitialLoading = false, errorOnPage = null) }
                 }
             } catch (e: CancellationException) {
-                throw e // never swallow coroutine cancellation
+                throw e // nunca engolir cancelamento de coroutine
             } catch (e: IOException) {
                 showLoadError(e)
             } catch (e: HttpException) {
                 showLoadError(e)
             } catch (e: Exception) {
-                // Catches anything else (e.g. Gson JsonSyntaxException from an unexpected body) so a
-                // parse failure surfaces as a recoverable error state instead of an uncaught crash
-                // that leaves Home stuck on the initial load.
+                // Captura qualquer outra coisa (ex.: Gson JsonSyntaxException por um corpo inesperado)
+                // para que uma falha de parsing apareça como estado de erro recuperável em vez de um
+                // crash não tratado que deixaria a Home travada no carregamento inicial.
                 showLoadError(e)
             }
         }
@@ -138,9 +138,9 @@ class HomeViewModel @Inject constructor(
     fun loadNextPage() {
         if (_searchQuery.value.isNotBlank() || !canLoadMore || _loadState.value.isLoadingMore) return
         _loadState.update { it.copy(isLoadingMore = true, errorOnPage = null) }
-        // Compute the next page without mutating currentPage up front. We only commit currentPage
-        // after a page is successfully appended, so a failed load can't leave the counter ahead of
-        // what's actually loaded (no rollback needed) — the next attempt simply retries the same page.
+        // Calcula a próxima página sem mutar currentPage de imediato. Só comitamos currentPage depois
+        // que uma página é anexada com sucesso, então um load que falha não deixa o contador à frente
+        // do que realmente foi carregado (sem rollback) — a próxima tentativa simplesmente reusa a mesma página.
         val nextPage = currentPage + 1
         viewModelScope.launch {
             try {
@@ -161,13 +161,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /** Logs the raw [error] and surfaces a friendly, localized message in the load state. */
+    /** Loga o [error] cru e apresenta uma mensagem amigável e localizada no load state. */
     private fun showLoadError(error: Throwable) {
         tracker.trackError("[HOME] load", error)
         _loadState.update { it.copy(isInitialLoading = false, error = error.toUserMessageRes()) }
     }
 
-    /** Logs the raw [error] and emits a friendly pagination event for the failed [page]. */
+    /** Loga o [error] cru e emite um evento amigável de paginação para a [page] que falhou. */
     private fun showPaginationError(error: Throwable, page: Int) {
         tracker.trackError("[HOME] pagination", error)
         _loadState.update { it.copy(isLoadingMore = false, errorOnPage = page) }

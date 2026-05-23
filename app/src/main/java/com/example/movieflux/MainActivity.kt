@@ -45,30 +45,32 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
-        // Draw behind the system bars so the teal top bar / search row can paint the status-bar
-        // region. Without this the window fits system windows and statusBarsPadding() resolves to 0.
+        // Desenha por trás das system bars para que a top bar verde-azulada / linha de busca pinte
+        // a região da status bar. Sem isso a janela se ajusta às system windows e statusBarsPadding()
+        // resolve para 0.
         enableEdgeToEdge()
 
-        // Keep the splash on screen until the (Keystore-backed) auth state has been read off the main
-        // thread. Reading EncryptedSharedPreferences synchronously here would risk a cold-start ANR.
+        // Mantém a splash em tela até que o estado de autenticação (apoiado pelo Keystore) tenha sido
+        // lido fora da main thread. Ler EncryptedSharedPreferences de forma síncrona aqui correria
+        // risco de ANR no cold start.
         var contentReady = false
         splashScreen.setKeepOnScreenCondition { !contentReady }
 
         lifecycleScope.launch {
-            // Build the encrypted prefs and read the auth flags on a background thread.
+            // Constrói as prefs criptografadas e lê as flags de auth em uma thread de background.
             authPreferences.awaitReady()
             val loggedInWithBiometric = withContext(Dispatchers.IO) {
                 authPreferences.isLoggedIn && authPreferences.biometricEnabled
             }
 
-            // Biometric is the ONLY way to skip the login screen on a relaunch. Without an enrolled,
-            // available, opted-in biometric, the user must authenticate via the login screen every
-            // time — a persisted isLoggedIn flag alone never bypasses login.
+            // A biometria é a ÚNICA forma de pular a tela de login em um relaunch. Sem uma biometria
+            // cadastrada, disponível e com opt-in, o usuário deve autenticar via tela de login toda
+            // vez — uma flag isLoggedIn persistida, sozinha, nunca contorna o login.
             val needsBiometric = loggedInWithBiometric &&
                 biometricHelper.canAuthenticate() == BiometricAvailability.Available
 
-            // Always start at the login graph. When needsBiometric is true the BiometricGate overlay
-            // defers composing the NavHost and flips effectiveStart to MainGraph on a successful scan.
+            // Sempre inicia no grafo de login. Quando needsBiometric é true, o overlay BiometricGate
+            // adia a composição do NavHost e troca effectiveStart para MainGraph após um scan bem-sucedido.
             val startDestination = Screen.AuthGraph.route
 
             setContent {

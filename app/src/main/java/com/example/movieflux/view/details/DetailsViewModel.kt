@@ -54,14 +54,14 @@ class DetailsViewModel @Inject constructor(
             } catch (e: HttpException) {
                 showLoadError(e)
             } catch (e: Exception) {
-                // Catch-all for parse failures (e.g. malformed JSON) so they surface as an error
-                // state instead of an uncaught crash.
+                // Catch-all para falhas de parsing (ex.: JSON malformado) para que apareçam como
+                // estado de erro em vez de um crash não tratado.
                 showLoadError(e)
             }
         }
     }
 
-    /** Logs the raw [error] and surfaces a friendly, localized message. */
+    /** Loga o [error] cru e apresenta uma mensagem amigável e localizada. */
     private fun showLoadError(error: Throwable) {
         tracker.trackError("[DETAILS] load", error)
         _uiState.value = DetailsUiState.Error(error.toUserMessageRes())
@@ -87,8 +87,8 @@ class DetailsViewModel @Inject constructor(
     fun share() {
         val current = _uiState.value as? DetailsUiState.Success ?: return
         val movie = current.movie
-        // Building intents / starting activities belongs in the UI layer; emit the data and let the
-        // Composable construct the chooser (keeps the ViewModel free of Context).
+        // Construir intents / iniciar activities pertence à camada de UI; emita os dados e deixe o
+        // Composable construir o chooser (mantém o ViewModel livre de Context).
         viewModelScope.launch {
             _events.send(
                 DetailsEvent.Share(

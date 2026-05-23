@@ -20,7 +20,7 @@ fun LogRecompositions(name: String) {
     }
 }
 
-/** Logs draw time for [name] when it exceeds [MIN_DRAW_TIME_MS], to spot jank-prone composables. */
+/** Loga o tempo de draw de [name] quando excede [MIN_DRAW_TIME_MS], para identificar composables propensos a jank. */
 fun Modifier.logDrawTime(name: String): Modifier = drawWithContent {
     val start = System.nanoTime()
     drawContent()

@@ -186,11 +186,7 @@ Principais bibliotecas utilizadas no projeto e seus links de documentação ofic
 gradlew detekt
 ```
 
-Relatório gerado em `app/build/reports/detekt/detekt.html` (HTML para leitura humana) e `detekt.xml` (para integrações CI). A configuração de regras está em `config/detekt/detekt.yml`; o baseline de findings pré-existentes está em `config/detekt/baseline.xml`. Para regenerar o baseline após uma limpeza deliberada:
-
-```bash
-gradlew detektBaseline
-```
+Relatório gerado em `app/build/reports/detekt/detekt.html` (HTML para leitura humana) e `detekt.xml` (para integrações CI). A configuração de regras está em `config/detekt/detekt.yml`.
 
 ### JaCoCo — Cobertura de testes unitários
 
@@ -209,7 +205,7 @@ A lógica testável por testes unitários — camada de domínio, repositório e
 | Camada           | Instruções | Linhas |
 |------------------|------------|--------|
 | Domínio (`domain/`) | 100%    | 100%   |
-| Dados (`data/`)¹    | 45,1%   | 34,7%  |
+| Dados (`data/`)¹    | 45,9%   | 35,5%  |
 
 ¹ A camada de dados inclui `data/local` (Room) e `data/biometric`, exercitados por testes instrumentados; o repositório, os mappers e o remote têm cobertura alta (ver abaixo e a tabela por pacote).
 
@@ -217,17 +213,17 @@ A lógica testável por testes unitários — camada de domínio, repositório e
 
 | Classe                | Instruções | Linhas |
 |-----------------------|------------|--------|
-| `MovieRepositoryImpl` | 94,6%      | 90,5%  |
+| `MovieRepositoryImpl` | 96,9%      | 100%   |
 
 **ViewModels:**
 
 | ViewModel            | Instruções | Linhas |
 |----------------------|------------|--------|
 | `LoginViewModel`     | 100%       | 100%   |
-| `HomeViewModel`      | 97,9%      | 100%   |
-| `FavoritesViewModel` | 97,0%      | 100%   |
-| `DetailsViewModel`   | 92,2%      | 97,1%  |
-| `ProfileViewModel`   | 93,2%      | 93,9%  |
+| `HomeViewModel`      | 98,2%      | 100%   |
+| `FavoritesViewModel` | 97,1%      | 100%   |
+| `DetailsViewModel`   | 93,5%      | 97,0%  |
+| `ProfileViewModel`   | 93,2%      | 93,6%  |
 
 > **Importante:** o JaCoCo aqui mede **somente os testes unitários** (`testDebugUnitTest`). As camadas de domínio, mapeamento e rede — onde reside a lógica de negócio — têm cobertura alta (90–100%). Os pacotes `view/` têm cobertura baixa neste relatório porque os Composables são validados por **testes de UI instrumentados** (`androidTest`), que rodam em dispositivo/emulador e **não são contabilizados** nesta métrica. Veja a seção abaixo.
 

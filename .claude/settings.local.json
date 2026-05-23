@@ -61,7 +61,8 @@
       "PowerShell(winget install *)",
       "PowerShell(& \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" --version)",
       "PowerShell(.\\\\gradlew.bat clean assembleRelease)",
-      "PowerShell(Get-ChildItem *)"
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(.\\\\gradlew.bat detekt jacocoTestReport --console=plain)"
     ]
   }
 }
