@@ -2,6 +2,8 @@
 
 Aplicativo Android de catálogo de filmes desenvolvido como desafio técnico. Utiliza a [API do TMDB](https://developer.themoviedb.org/docs) para listar filmes populares, busca, detalhes, favoritos offline e autenticação biométrica.
 
+> 📋 **Para avaliadores:** o documento [`docs/CHALLENGE_MAPPING.md`](docs/CHALLENGE_MAPPING.md) mapeia cada requisito do desafio para o local exato no código que o atende (arquivo + linha), lista as funcionalidades extras adicionadas além do escopo e referencia os critérios de avaliação.
+
 ---
 
 ## Configuração (Setup)
@@ -276,6 +278,18 @@ Este projeto utilizou diversas ferramentas de IA de forma complementar durante o
 - Auditoria do plano de implementação.
 - Elaboração do plano revisado de implementação.
 - Revisão de testes unitários e identificação de lacunas de cobertura.
+
+### Metodologia: pipeline de 3 agentes (Prompt Engineering)
+
+Em vez de prompts ad-hoc, o desenvolvimento usou um pipeline de agentes com papéis isolados e contratos de comportamento rígidos. Os prompts completos estão em `docs/prompts/`:
+
+1. **Validator** (`docs/prompts/VALIDATOR_PROMPT.md`) — audita código + plano contra a spec do desafio e produz `docs/reviews/CHALLENGE_VALIDATION.md`. Não escreve código.
+2. **Architect** (`docs/prompts/ARCHITECT_PROMPT.md`) — converte o relatório de validação em `docs/plans/REVISED_IMPLEMENTATION_PLAN.md`, com critérios de aceite verificáveis por fase. Decide, mas não escreve código.
+3. **Executor** (`docs/prompts/EXECUTOR_PROMPT.md`) — implementa o plano fase a fase, um commit por fase. Não toma decisões de arquitetura nem expande escopo.
+
+Cada prompt embute a spec do desafio como fonte de verdade imutável. Todos os commits passaram por cautelosa revisão humana.
+
+**Exemplo concreto do fluxo:** o Validator detectou que `onAuthenticationFailed` estava sendo tratado como falha terminal (erro de uso da API de Biometria) → o Architect especificou o `Fix-4A` no plano revisado → o Executor implementou a correção tornando o callback um no-op em `BiometricHelper.kt`. Isso evidencia o pipeline funcionando ponta a ponta.
 
 ### [ChatGPT](https://chatgpt.com/) ([OpenAI](https://openai.com/)) — Code Reviewer
 

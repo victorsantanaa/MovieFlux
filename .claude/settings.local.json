@@ -56,7 +56,12 @@
       "Bash(./gradlew compileDebugKotlin -q)",
       "PowerShell(.\\\\gradlew.bat testDebugUnitTest --tests \"com.example.movieflux.HomeViewModelTest\" --tests \"com.example.movieflux.FavoritesViewModelTest\" --tests \"com.example.movieflux.view.details.DetailsViewModelTest\" --tests \"com.example.movieflux.domain.usecase.UseCaseTest\" -q)",
       "PowerShell(.\\\\gradlew.bat testDebugUnitTest -q)",
-      "PowerShell(.\\\\gradlew.bat compileDebugKotlin testDebugUnitTest -q)"
+      "PowerShell(.\\\\gradlew.bat compileDebugKotlin testDebugUnitTest -q)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(winget install *)",
+      "PowerShell(& \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" --version)",
+      "PowerShell(.\\\\gradlew.bat clean assembleRelease)",
+      "PowerShell(Get-ChildItem *)"
     ]
   }
 }
