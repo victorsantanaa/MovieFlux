@@ -6,9 +6,9 @@ import retrofit2.HttpException
 import java.io.IOException
 
 /**
- * Maps a [Throwable] to a friendly, localized [StringRes] for display. The raw exception message is
- * intentionally never surfaced to the user — it's technical, untranslated, and may leak internal
- * detail; callers should log the throwable separately (see #10 in the code review).
+ * Mapeia um [Throwable] para um [StringRes] amigável e localizado para exibição. A mensagem crua da
+ * exceção intencionalmente nunca é mostrada ao usuário — é técnica, não traduzida e pode vazar
+ * detalhes internos; os chamadores devem logar o throwable separadamente.
  */
 @StringRes
 fun Throwable.toUserMessageRes(): Int = when (this) {

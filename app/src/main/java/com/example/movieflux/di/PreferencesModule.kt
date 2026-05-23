@@ -4,7 +4,11 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 
-// AuthPreferences and BiometricHelper use @Inject constructors + @Singleton — Hilt binds them automatically.
+/**
+ * Vazio por design: [com.example.movieflux.data.preferences.AuthPreferences] e
+ * [com.example.movieflux.data.biometric.BiometricHelper] usam construtores `@Inject` + `@Singleton`,
+ * então o Hilt faz o binding automaticamente sem necessidade de `@Provides` explícito aqui.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object PreferencesModule

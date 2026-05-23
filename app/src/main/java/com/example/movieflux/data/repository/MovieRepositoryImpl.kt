@@ -21,7 +21,7 @@ class MovieRepositoryImpl @Inject constructor(
     private val dao: MovieDao
 ) : MovieRepository {
 
-    /** Time source, overridable in tests. */
+    /** Fonte de tempo, sobrescrevível nos testes. */
     internal var clock: () -> Long = { System.currentTimeMillis() }
 
     private val genresMutex = Mutex()
@@ -30,22 +30,20 @@ class MovieRepositoryImpl @Inject constructor(
     @Volatile private var genresCachedAt: Long = 0L
 
     private companion object {
-        /** Max rows kept in `movie_cache`; older rows are evicted so the cache can't grow forever. */
+        /** Máximo de linhas em `movie_cache`; as mais antigas são removidas para limitar o cache. */
         const val MAX_CACHE_ROWS = 500
-        /** Genre map is refreshed from the network once it's older than this. */
-        const val GENRES_TTL_MS = 24L * 60 * 60 * 1000 // 24h
+        /** O mapa de gêneros é renovado pela rede quando estiver mais antigo do que este valor. */
+        const val GENRES_TTL_MS = 24L * 60 * 60 * 1000
     }
 
     override fun getPopularMovies(page: Int): Flow<List<MovieModel>> = flow {
         val favoriteIds = dao.getFavoriteIds().toSet()
 
-        // 1. Emit cache immediately so the UI has something to show
         val cached = dao.getCachedPage(page)
         if (cached.isNotEmpty()) {
             emit(cached.map { it.toDomain(isFavorite = it.id in favoriteIds) })
         }
 
-        // 2. Fetch from network
         try {
             val genres = getGenres()
             val remote = api.getPopular(page)
@@ -59,11 +57,11 @@ class MovieRepositoryImpl @Inject constructor(
                 )
             }
 
-            // 3. Persist to DB (source of truth), then cap the cache so it can't grow unbounded.
+            // Persiste no DB (fonte da verdade) e limita o cache para que ele não cresça sem limite.
             dao.upsertCache(entities)
             dao.evictCacheBeyond(MAX_CACHE_ROWS)
 
-            // 4. Emit only when the page content actually changed
+            // Só emite quando o conteúdo da página realmente mudou.
             val remoteIds = entities.map { it.id }
             val cachedIds = cached.map { it.id }
             if (remoteIds != cachedIds) {
@@ -80,9 +78,9 @@ class MovieRepositoryImpl @Inject constructor(
         dao.getFavorites().map { list ->
             list.map { entity ->
                 val domain = entity.toDomain()
-                // Genre names are persisted on the favorite row (#6), so they're available even on a
-                // cold start straight into Favorites. Fall back to the in-memory genre map only for
-                // legacy rows saved before names were persisted, and only if it's already loaded.
+                // Os nomes dos gêneros são persistidos na linha de favorito, então ficam disponíveis
+                // mesmo num cold start direto em Favoritos. Cai para o mapa de gêneros em memória
+                // apenas para linhas legadas salvas antes da persistência dos nomes, e só se já estiver carregado.
                 if (domain.genreNames.isEmpty() && domain.genreIds.isNotEmpty()) {
                     val genres = cachedGenres ?: emptyMap()
                     domain.copy(genreNames = domain.genreIds.mapNotNull { genres[it] })
@@ -103,7 +101,7 @@ class MovieRepositoryImpl @Inject constructor(
     override suspend fun getGenres(): Map<Int, String> {
         cachedGenres?.let { if (!isGenresExpired()) return it }
         return genresMutex.withLock {
-            // Re-check inside the lock; another caller may have refreshed while we waited.
+            // Reverifica dentro do lock; outro chamador pode ter renovado enquanto esperávamos.
             cachedGenres?.let { if (!isGenresExpired()) return it }
             api.genres().genres.orEmpty()
                 .mapNotNull { genre -> genre.name?.let { genre.id to it } }
@@ -118,7 +116,7 @@ class MovieRepositoryImpl @Inject constructor(
     private fun isGenresExpired(): Boolean = clock() - genresCachedAt >= GENRES_TTL_MS
 
     override fun searchMovies(query: String): Flow<List<MovieModel>> = flow {
-        // Search results are transient — no cache
+        // Resultados de busca são transitórios — sem cache.
         val favoriteIds = dao.getFavoriteIds().toSet()
         val genres = getGenres()
         val result = api.search(query)
@@ -134,13 +132,11 @@ class MovieRepositoryImpl @Inject constructor(
         val favoriteIds = dao.getFavoriteIds().toSet()
         val isFavorite = id in favoriteIds
 
-        // 1. Favorites table first (already persisted with full data)
         val favorite = dao.getFavoriteById(id)
         if (favorite != null) {
             emit(favorite.toDomain())
         }
 
-        // 2. Popular movies cache (if not already emitted from favorites)
         if (favorite == null) {
             val cached = dao.getCachedById(id)
             if (cached != null) {
@@ -148,14 +144,13 @@ class MovieRepositoryImpl @Inject constructor(
             }
         }
 
-        // 3. Fetch fresh from network, save, emit
         try {
             val dto = api.getMovieDetail(id)
             dao.upsertCachedMovie(dto.toCacheEntity(updatedAt = clock()))
             dao.evictCacheBeyond(MAX_CACHE_ROWS)
             emit(dto.toDomain(isFavorite = isFavorite))
         } catch (e: IOException) {
-            // Only propagate if we had nothing to show from cache
+            // Só propaga se não tínhamos nada para mostrar a partir do cache.
             if (favorite == null && dao.getCachedById(id) == null) throw e
         } catch (e: HttpException) {
             if (favorite == null && dao.getCachedById(id) == null) throw e

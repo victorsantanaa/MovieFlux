@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MovieDao {
 
-    // ── Favorites ────────────────────────────────────────────────────────────
+    // ── Favoritos ────────────────────────────────────────────────────────────
 
     @Query("SELECT * FROM favorites")
     fun getFavorites(): Flow<List<MovieEntity>>
@@ -27,7 +27,7 @@ interface MovieDao {
     @Delete
     suspend fun delete(movie: MovieEntity)
 
-    // ── Movie cache ───────────────────────────────────────────────────────────
+    // ── Cache de filmes ──────────────────────────────────────────────────────
 
     @Query("SELECT * FROM movie_cache WHERE page = :page ORDER BY rank")
     suspend fun getCachedPage(page: Int): List<CachedMovieEntity>
@@ -41,7 +41,7 @@ interface MovieDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCachedMovie(movie: CachedMovieEntity)
 
-    /** Caps the cache: deletes all but the [keep] most-recently-updated rows so it can't grow forever. */
+    /** Mantém só as [keep] linhas mais recentemente atualizadas; o restante é apagado. */
     @Query(
         "DELETE FROM movie_cache WHERE id NOT IN " +
             "(SELECT id FROM movie_cache ORDER BY updatedAt DESC, page ASC, rank ASC LIMIT :keep)"

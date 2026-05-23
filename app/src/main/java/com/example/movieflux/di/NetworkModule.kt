@@ -37,10 +37,11 @@ object NetworkModule {
                     .build()
                 val request = original.newBuilder()
                     .url(url)
-                    // Opt out of compression. TMDB's CDN sometimes serves cache HITs as a gzip body
-                    // *without* a `Content-Encoding: gzip` header, which OkHttp can't transparently
-                    // decompress — Gson then fails to parse the raw gzip bytes. Requesting `identity`
-                    // makes the server return plain JSON, sidestepping the broken-header case entirely.
+                    // Opt-out de compressão. O CDN da TMDB às vezes serve cache HITs como corpo gzip
+                    // *sem* o header `Content-Encoding: gzip`, que o OkHttp não consegue descomprimir
+                    // de forma transparente — o Gson então falha ao parsear os bytes gzip crus.
+                    // Solicitar `identity` faz o servidor retornar JSON puro, contornando totalmente
+                    // o caso de header quebrado.
                     .header("Accept-Encoding", "identity")
                     .build()
                 chain.proceed(request)

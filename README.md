@@ -2,6 +2,8 @@
 
 Aplicativo Android de catálogo de filmes desenvolvido como desafio técnico. Utiliza a [API do TMDB](https://developer.themoviedb.org/docs) para listar filmes populares, busca, detalhes, favoritos offline e autenticação biométrica.
 
+> 📋 **Para avaliadores:** o documento [`docs/CHALLENGE_MAPPING.md`](docs/CHALLENGE_MAPPING.md) mapeia cada requisito do desafio para o local exato no código que o atende (arquivo + linha), lista as funcionalidades extras adicionadas além do escopo e referencia os critérios de avaliação.
+
 ---
 
 ## Configuração (Setup)
@@ -184,11 +186,7 @@ Principais bibliotecas utilizadas no projeto e seus links de documentação ofic
 gradlew detekt
 ```
 
-Relatório gerado em `app/build/reports/detekt/detekt.html` (HTML para leitura humana) e `detekt.xml` (para integrações CI). A configuração de regras está em `config/detekt/detekt.yml`; o baseline de findings pré-existentes está em `config/detekt/baseline.xml`. Para regenerar o baseline após uma limpeza deliberada:
-
-```bash
-gradlew detektBaseline
-```
+Relatório gerado em `app/build/reports/detekt/detekt.html` (HTML para leitura humana) e `detekt.xml` (para integrações CI). A configuração de regras está em `config/detekt/detekt.yml`.
 
 ### JaCoCo — Cobertura de testes unitários
 
@@ -207,7 +205,7 @@ A lógica testável por testes unitários — camada de domínio, repositório e
 | Camada           | Instruções | Linhas |
 |------------------|------------|--------|
 | Domínio (`domain/`) | 100%    | 100%   |
-| Dados (`data/`)¹    | 45,1%   | 34,7%  |
+| Dados (`data/`)¹    | 45,9%   | 35,5%  |
 
 ¹ A camada de dados inclui `data/local` (Room) e `data/biometric`, exercitados por testes instrumentados; o repositório, os mappers e o remote têm cobertura alta (ver abaixo e a tabela por pacote).
 
@@ -215,17 +213,17 @@ A lógica testável por testes unitários — camada de domínio, repositório e
 
 | Classe                | Instruções | Linhas |
 |-----------------------|------------|--------|
-| `MovieRepositoryImpl` | 94,6%      | 90,5%  |
+| `MovieRepositoryImpl` | 96,9%      | 100%   |
 
 **ViewModels:**
 
 | ViewModel            | Instruções | Linhas |
 |----------------------|------------|--------|
 | `LoginViewModel`     | 100%       | 100%   |
-| `HomeViewModel`      | 97,9%      | 100%   |
-| `FavoritesViewModel` | 97,0%      | 100%   |
-| `DetailsViewModel`   | 92,2%      | 97,1%  |
-| `ProfileViewModel`   | 93,2%      | 93,9%  |
+| `HomeViewModel`      | 98,2%      | 100%   |
+| `FavoritesViewModel` | 97,1%      | 100%   |
+| `DetailsViewModel`   | 93,5%      | 97,0%  |
+| `ProfileViewModel`   | 93,2%      | 93,6%  |
 
 > **Importante:** o JaCoCo aqui mede **somente os testes unitários** (`testDebugUnitTest`). As camadas de domínio, mapeamento e rede — onde reside a lógica de negócio — têm cobertura alta (90–100%). Os pacotes `view/` têm cobertura baixa neste relatório porque os Composables são validados por **testes de UI instrumentados** (`androidTest`), que rodam em dispositivo/emulador e **não são contabilizados** nesta métrica. Veja a seção abaixo.
 
@@ -276,6 +274,18 @@ Este projeto utilizou diversas ferramentas de IA de forma complementar durante o
 - Auditoria do plano de implementação.
 - Elaboração do plano revisado de implementação.
 - Revisão de testes unitários e identificação de lacunas de cobertura.
+
+### Metodologia: pipeline de 3 agentes (Prompt Engineering)
+
+Em vez de prompts ad-hoc, o desenvolvimento usou um pipeline de agentes com papéis isolados e contratos de comportamento rígidos. Os prompts completos estão em `docs/prompts/`:
+
+1. **Validator** (`docs/prompts/VALIDATOR_PROMPT.md`) — audita código + plano contra a spec do desafio e produz `docs/reviews/CHALLENGE_VALIDATION.md`. Não escreve código.
+2. **Architect** (`docs/prompts/ARCHITECT_PROMPT.md`) — converte o relatório de validação em `docs/plans/REVISED_IMPLEMENTATION_PLAN.md`, com critérios de aceite verificáveis por fase. Decide, mas não escreve código.
+3. **Executor** (`docs/prompts/EXECUTOR_PROMPT.md`) — implementa o plano fase a fase, um commit por fase. Não toma decisões de arquitetura nem expande escopo.
+
+Cada prompt embute a spec do desafio como fonte de verdade imutável. Todos os commits passaram por cautelosa revisão humana.
+
+**Exemplo concreto do fluxo:** o Validator detectou que `onAuthenticationFailed` estava sendo tratado como falha terminal (erro de uso da API de Biometria) → o Architect especificou o `Fix-4A` no plano revisado → o Executor implementou a correção tornando o callback um no-op em `BiometricHelper.kt`. Isso evidencia o pipeline funcionando ponta a ponta.
 
 ### [ChatGPT](https://chatgpt.com/) ([OpenAI](https://openai.com/)) — Code Reviewer
 

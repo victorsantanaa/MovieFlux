@@ -28,9 +28,9 @@ fun MainScaffold(onLogout: () -> Unit) {
     val shouldShowBottomBar = currentRoute?.startsWith("details/") == false
 
     Scaffold(
-        // Don't apply system-bar insets to the content here. Each destination has its own
-        // Scaffold/top bar that owns the status-bar region (so the teal top bar can paint behind
-        // the status bar). The BottomNavBar still applies its own navigation-bar inset.
+        // Não aplique system-bar insets ao conteúdo aqui. Cada destino tem seu próprio Scaffold/top
+        // bar que é dono da região da status bar (para que a top bar verde-azulada possa pintar atrás
+        // da status bar). A BottomNavBar continua aplicando seu próprio inset da navigation bar.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (shouldShowBottomBar) {
